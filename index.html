@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberpunk Card Battle</title>
+    <style>
+        :root {
+            --neon-pink: #ff2a6d;
+            --neon-blue: #05d9e8;
+            --neon-purple: #d300c5;
+            --dark-bg: #0d0221;
+            --darker-bg: #05010e;
+            --card-width: 120px;
+            --card-height: 180px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            font-family: 'Courier New', monospace;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: white;
+            min-height: 100vh;
+            position: relative;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(255, 42, 109, 0.15) 0%, transparent 25%),
+                radial-gradient(circle at 80% 70%, rgba(5, 217, 232, 0.15) 0%, transparent 25%);
+        }
+
+        /* Main container */
+        .game-container {
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Character selection screen */
+        .character-select {
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            background-color: var(--darker-bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px;
+            text-align: center;
+            overflow-y: auto;
+        }
+
+        .character-select h1 {
+            color: var(--neon-pink);
+            text-shadow: 0 0 10px var(--neon-pink);
+            margin: 20px 0;
+            font-size: 2.5rem;
+        }
+
+        .character-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            max-width: 800px;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+
+        .character-card {
+            background: rgba(13, 2, 33, 0.7);
+            border: 2px solid var(--neon-blue);
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .character-card.selected {
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 20px var(--neon-pink);
+            transform: scale(1.05);
+        }
+
+        .character-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--neon-purple);
+            margin-bottom: 10px;
+        }
+
+        .character-name {
+            color: var(--neon-blue);
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .special-move-info {
+            display: none;
+            background: rgba(5, 1, 14, 0.9);
+            border: 1px solid var(--neon-pink);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .character-card.selected .special-move-info {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .special-move-name {
+            color: var(--neon-pink);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        /* Deck builder */
+        .deck-builder {
+            background: rgba(5, 1, 14, 0.9);
+            border: 1px solid var(--neon-purple);
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 600px;
+            margin: 20px 0;
+            width: 100%;
+        }
+
+        .deck-builder h2 {
+            color: var(--neon-blue);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .card-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .card-option {
+            background: rgba(13, 2, 33, 0.7);
+            border: 1px solid var(--neon-blue);
+            border-radius: 5px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .card-option:hover {
+            border-color: var(--neon-pink);
+        }
+
+        .card-option.selected {
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 10px var(--neon-pink);
+        }
+
+        .start-game-btn {
+            background: linear-gradient(45deg, var(--neon-pink), var(--neon-purple));
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 30px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px var(--neon-purple);
+        }
+
+        .start-game-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px var(--neon-pink);
+        }
+
+        /* Battle UI */
+        .battle-ui {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Player areas */
+        .player-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            min-height: 50vh;
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .battle-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .player-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--neon-blue);
+            text-shadow: 0 0 5px var(--neon-blue);
+        }
+
+        .health-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .health-bar {
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff2a6d, #ff7b00);
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .health-text {
+            min-width: 80px;
+            text-align: center;
+            font-weight: bold;
+            color: white;
+        }
+
+        /* Card decks */
+        .deck-area {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            height: calc(var(--card-height) + 30px);
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
+
+        .card {
+            width: var(--card-width);
+            height: var(--card-height);
+            background: linear-gradient(145deg, #1a1a2e, #2a2a4e);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 15px;
+            color: white;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid var(--neon-blue);
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple), var(--neon-pink));
+            z-index: -1;
+            border-radius: 12px;
+            opacity: 0.7;
+        }
+
+        .card:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 10px 25px rgba(255, 42, 109, 0.5);
+            border-color: var(--neon-pink);
+        }
+
+        .card.ai-card {
+            background: linear-gradient(145deg, #2a2a4e, #3a3a6e);
+            cursor: not-allowed;
+        }
+
+        .card.ai-card::before {
+            background: linear-gradient(45deg, #555, #888);
+        }
+
+        .card-name {
+            font-weight: bold;
+            text-align: center;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            color: var(--neon-blue);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            text-align: center;
+            margin: 10px 0;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .card.attack .card-icon {
+            color: var(--neon-pink);
+        }
+
+        .card.heal .card-icon {
+            color: #00ff9d;
+        }
+
+        .card-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .card.attack .card-value {
+            color: var(--neon-pink);
+            text-shadow: 0 0 5px var(--neon-pink);
+        }
+
+        .card.heal .card-value {
+            color: #00ff9d;
+            text-shadow: 0 0 5px #00ff9d;
+        }
+
+        /* Special move button */
+        .special-move-btn {
+            background: linear-gradient(45deg, var(--neon-purple), var(--neon-pink));
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+            box-shadow: 0 0 10px var(--neon-purple);
+        }
+
+        .special-move-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px var(--neon-pink);
+        }
+
+        .special-move-btn:disabled {
+            background: #555;
+            color: #999;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Battle log */
+        .battle-log {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            height: 200px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--neon-blue);
+            border-radius: 5px;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            color: #00ff9d;
+            box-shadow: 0 0 15px rgba(5, 217, 232, 0.3);
+            z-index: 10;
+        }
+
+        .battle-log::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to bottom, rgba(5, 217, 232, 0.3), transparent);
+            pointer-events: none;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(5, 217, 232, 0.2);
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--neon-pink);
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 10px var(--neon-pink);
+            z-index: 100;
+            animation: fadeInOut 5s ease forwards;
+            background: transparent;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            80% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+
+        /* Turn indicator */
+        .turn-indicator {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(45deg, var(--neon-pink), var(--neon-purple));
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            box-shadow: 0 0 15px var(--neon-purple);
+            z-index: 10;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 10px var(--neon-purple); }
+            50% { box-shadow: 0 0 20px var(--neon-pink); }
+            100% { box-shadow: 0 0 10px var(--neon-purple); }
+        }
+
+        /* Effects */
+        .damage-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255, 42, 109, 0.5) 0%, transparent 70%);
+            animation: flash 0.5s;
+        }
+
+        .heal-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(0, 255, 157, 0.5) 0%, transparent 70%);
+            animation: flash 0.5s;
+        }
+
+        /* Victory/Defeat Effects */
+        .victory-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(0,255,157,0.7) 0%, transparent 70%);
+            animation: fadeIn 1s ease forwards;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .defeat-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255,42,109,0.7) 0%, rgba(13,2,33,0.9) 70%);
+            animation: fadeIn 1s ease forwards;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .draw-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(5,217,232,0.7) 0%, rgba(13,2,33,0.9) 70%);
+            animation: fadeIn 1s ease forwards;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        @keyframes flash {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0; transform: scale(1); }
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 15px;
+            margin-top: auto;
+        }
+
+        .control-btn {
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px var(--neon-pink);
+        }
+
+        .control-btn:disabled {
+            background: #555;
+            color: #999;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Animations */
+        .card-play-anim {
+            animation: cardPlay 0.5s ease forwards;
+        }
+
+        @keyframes cardPlay {
+            0% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-50px) scale(1.1); }
+            100% { transform: translateY(0) scale(1); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 768px) {
+            :root {
+                --card-width: 80px;
+                --card-height: 120px;
+            }
+
+            .character-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+
+            .card-options {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .battle-log {
+                width: calc(100% - 40px);
+                height: 120px;
+                bottom: 100px;
+                left: 20px;
+                right: 20px;
+            }
+
+            .player-info {
+                flex-wrap: wrap;
+            }
+
+            .health-container {
+                width: 100%;
+                order: 3;
+                margin-top: 10px;
+            }
+
+            .player-name {
+                font-size: 1.2rem;
+            }
+
+            .battle-avatar {
+                width: 40px;
+                height: 40px;
+            }
+
+            .card {
+                padding: 5px;
+            }
+
+            .card-name {
+                font-size: 0.7rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .card-icon {
+                font-size: 1.5rem;
+                margin: 5px 0;
+            }
+
+            .card-value {
+                font-size: 1rem;
+            }
+
+            .deck-area {
+                height: auto;
+                min-height: calc(var(--card-height) + 20px);
+                padding: 5px 0;
+                gap: 8px;
+                margin: 10px 0;
+            }
+
+            .special-move-btn {
+                position: relative;
+                width: 80%;
+                max-width: 250px;
+                margin: 10px auto;
+                padding: 10px 20px;
+                font-size: 1rem;
+                background: linear-gradient(45deg, var(--neon-purple), var(--neon-pink));
+                border: 1px solid var(--neon-pink);
+                box-shadow: 0 0 15px rgba(210, 0, 197, 0.7);
+                text-shadow: 0 0 5px rgba(0,0,0,0.5);
+                order: 1;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+                position: fixed;
+                bottom: 10px;
+                left: 0;
+                right: 0;
+                background: rgba(5, 1, 14, 0.9);
+                padding: 10px;
+                z-index: 10;
+            }
+
+            .control-btn {
+                padding: 8px 15px;
+            }
+
+            .player-area {
+                display: flex;
+                flex-direction: column;
+                padding-bottom: 80px;
+            }
+
+            .player-area > .player-info {
+                order: 0;
+            }
+            .player-area > .deck-area {
+                order: 1;
+            }
+            .player-area > .special-move-btn {
+                order: 2;
+            }
+
+            .turn-indicator {
+                font-size: 0.9rem;
+                padding: 5px 15px;
+                top: 10px;
+            }
+
+            .special-move-info {
+                font-size: 0.7rem;
+                padding: 5px;
+            }
+
+            .notification {
+                font-size: 1.2rem;
+                padding: 10px 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            :root {
+                --card-width: 70px;
+                --card-height: 100px;
+            }
+
+            .character-select h1 {
+                font-size: 1.8rem;
+            }
+
+            .character-avatar {
+                width: 60px;
+                height: 60px;
+            }
+
+            .character-name {
+                font-size: 0.9rem;
+            }
+
+            .deck-builder h2 {
+                font-size: 1.2rem;
+            }
+
+            .start-game-btn {
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+
+            .battle-log {
+                height: 100px;
+                font-size: 0.8rem;
+            }
+
+            .card {
+                padding: 3px;
+            }
+
+            .card-name {
+                font-size: 0.6rem;
+            }
+
+            .card-icon {
+                font-size: 1.2rem;
+            }
+
+            .card-value {
+                font-size: 0.8rem;
+            }
+
+            .deck-area {
+                gap: 5px;
+            }
+
+            .special-move-btn {
+                padding: 8px 15px;
+                font-size: 0.9rem;
+            }
+
+            .notification {
+                font-size: 1rem;
+                padding: 8px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Character Selection Screen -->
+    <div class="character-select" id="character-select">
+        <h1>SELECT YOUR FIGHTER</h1>
+        <div class="character-grid" id="character-grid">
+            <!-- Characters will be added here by JS -->
+        </div>
+        <div class="deck-builder" id="deck-builder" style="display: none;">
+            <h2>BUILD YOUR DECK</h2>
+            <div class="card-options" id="card-options">
+                <!-- Card options will be added here by JS -->
+            </div>
+            <button class="start-game-btn" id="start-game-btn">BEGIN BATTLE</button>
+        </div>
+    </div>
+
+    <!-- Main Game UI -->
+    <div class="game-container" id="game-container" style="display: none;">
+        <div class="battle-ui">
+             <!-- Player (Bottom) -->
+            <div class="player-area">
+                <div class="player-info">
+                    <img class="battle-avatar" id="player-avatar" src="" alt="Player Avatar">
+                    <div class="player-name" id="player-name">PLAYER</div>
+                    <div class="health-container">
+                        <div class="health-bar">
+                            <div class="health-fill" id="player-health-bar"></div>
+                        </div>
+                        <div class="health-text" id="player-health-text">100/100</div>
+                    </div>
+                </div>
+                <div class="deck-area" id="player-deck">
+                    <!-- Player cards will be added here -->
+                </div>
+                <button class="special-move-btn" id="special-move-btn" disabled>USE SPECIAL MOVE</button>
+            </div>
+            <!-- AI Player (Top) -->
+            <div class="player-area">
+                <div class="turn-indicator" id="turn-indicator">YOUR TURN</div>
+                <div class="player-info">
+                    <img class="battle-avatar" id="ai-avatar" src="" alt="AI Avatar">
+                    <div class="player-name" id="ai-name">AI</div>
+                    <div class="health-container">
+                        <div class="health-bar">
+                            <div class="health-fill" id="ai-health-bar"></div>
+                        </div>
+                        <div class="health-text" id="ai-health-text">100/100</div>
+                    </div>
+                </div>
+                <div class="deck-area" id="ai-deck">
+                    <!-- AI cards will be added here -->
+                </div>
+            </div>
+
+            <!-- Battle Log -->
+            <div class="battle-log" id="battle-log">
+                <div class="log-entry">System initialized. Battle ready.</div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <button class="control-btn" id="new-game-btn">NEW GAME</button>
+                <button class="control-btn" id="restart-btn">RESTART MATCH</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game Data
+        const characters = [
+            { 
+                name: "Uma", 
+                avatar: "./Avatars/Uma.webp",
+                specialMove: {
+                    name: "Founder Dominance",
+                    description: "Deals 40 damage to opponent",
+                    effect: (user, target) => {
+                        target.health -= 40;
+                        if (target.health < 0) target.health = 0;
+                        return `${user.name} uses Founder Dominance! Deals 40 damage to ${target.name}!`;
+                    }
+                }
+            },
+            { 
+                name: "Zahar0n", 
+                avatar: "./Avatars/Zahar0n.webp",
+                specialMove: {
+                    name: "I am Batman",
+                    description: "Deals 25 damage to opponent",
+                    effect: (user, target) => {
+                        target.health -= 25;
+                        if (target.health < 0) target.health = 0;
+                        return `${user.name} uses I am Batman! Deals 25 damage to ${target.name}!`;
+                    }
+                }
+            },
+            { 
+                name: "Saigon", 
+                avatar: "./Avatars/Saigon.jpg",
+                specialMove: {
+                    name: "Cat Attack",
+                    description: "Deals 20 damage to opponent",
+                    effect: (user, target) => {
+                        target.health -= 20;
+                        if (target.health < 0) target.health = 0;
+                        return `${user.name} uses Cat Attack! Deals 20 damage to ${target.name}!`;
+                    }
+                }
+            },
+            { 
+                name: "Yinger", 
+                avatar: "./Avatars/Yinger.webp",
+                specialMove: {
+                    name: "Dictator",
+                    description: "Deals 35 damage to opponent",
+                    effect: (user, target) => {
+                        target.health -= 35;
+                        if (target.health < 0) target.health = 0;
+                        return `${user.name} uses Dictator! Deals 35 damage to ${target.name}!`;
+                    }
+                }
+            },
+            { 
+                name: "Addy", 
+                avatar: "./Avatars/Addy.webp",
+                specialMove: {
+                    name: "Eggscalibur",
+                    description: "Deals 30 damage to opponent",
+                    effect: (user, target) => {
+                        target.health -= 30;
+                        if (target.health < 0) target.health = 0;
+                        return `${user.name} uses Eggscalibur! Deals 30 damage to ${target.name}!`;
+                    }
+                }
+            },
+            { 
+                name: "Stepaks", 
+                avatar: "./Avatars/Stepaks.webp",
+                specialMove: {
+                    name: "Botman",
+                    description: "Gets one additional turn",
+                    effect: (user, target) => {
+                        user.extraTurns = 1;
+                        return `${user.name} uses Botman! Gets one additional turn!`;
+                    }
+                }
+            },
+            { 
+                name: "Pix", 
+                avatar: "./Avatars/Pix.webp",
+                specialMove: {
+                    name: "Artiste",
+                    description: "Heals 40 HP",
+                    effect: (user, target) => {
+                        user.health += 40;
+                        if (user.health > 100) user.health = 100;
+                        return `${user.name} uses Artiste! Heals 40 HP!`;
+                    }
+                }
+            },
+            { 
+                name: "Cocowaves", 
+                avatar: "./Avatars/Cocowaves.jpg",
+                specialMove: {
+                    name: "Queen",
+                    description: "Gets one additional turn",
+                    effect: (user, target) => {
+                        user.extraTurns = 1;
+                        return `${user.name} uses Queen! Gets one additional turn!`;
+                    }
+                }
+            },
+            { 
+                name: "Zkdan", 
+                avatar: "./Avatars/dan.webp",
+                specialMove: {
+                    name: "Labubu Rage",
+                    description: "Deals 40 damage to opponent",
+                    effect: (user, target) => {
+                        target.health -= 40;
+                        if (target.health < 0) target.health = 0;
+                        return `${user.name} uses Labubu Rage! Deals 40 damage to ${target.name}!`;
+                    }
+                }
+            },
+            { 
+                name: "Bugs", 
+                avatar: "./Avatars/Bugs.webp",
+                specialMove: {
+                    name: "Mr Helper",
+                    description: "Heals 30 HP",
+                    effect: (user, target) => {
+                        user.health += 30;
+                        if (user.health > 100) user.health = 100;
+                        return `${user.name} uses Mr Helper! Heals 30 HP!`;
+                    }
+                }
+            },
+            { 
+                name: "Tuong", 
+                avatar: "./Avatars/Tuong.webp",
+                specialMove: {
+                    name: "Mr Green",
+                    description: "Heals 25 HP",
+                    effect: (user, target) => {
+                        user.health += 25;
+                        if (user.health > 100) user.health = 100;
+                        return `${user.name} uses Mr Green! Heals 25 HP!`;
+                    }
+                }
+            },
+            { 
+                name: "Chixxey", 
+                avatar: "./Avatars/Chixxey.webp", 
+                specialMove: {
+                    name: "Love Bomb",
+                    description: "Deals 5 damage to opponent and gets an extra turn",
+                    effect: (user, target) => {
+                        target.health -= 5;
+                        if (target.health < 0) target.health = 0;
+                        user.extraTurns = 1;
+                        return `${user.name} uses Love Bomb! Deals 5 damage to ${target.name} and gets an extra turn!`;
+                    }
+                }
+            },
+            { 
+                name: "Wylo", 
+                avatar: "./Avatars/Wylo.jpg",
+                specialMove: {
+                    name: "The Clown",
+                    description: "Deals 35 damage to himself",
+                    effect: (user, target) => {
+                        user.health -= 35;
+                        if (user.health < 0) user.health = 0;
+                        return `${user.name} uses The Clown! Deals 35 damage to himself!`;
+                    }
+                }
+            }
+        ];
+
+      const allCardTypes = [
+    { name: "Slash", type: "attack", power: 15, icon: "⚔️" },
+    { name: "Fireball", type: "attack", power: 20, icon: "🔥" },
+    { name: "Crush", type: "attack", power: 25, icon: "🔨" },
+    { name: "Pierce", type: "attack", power: 18, icon: "🗡️" },
+    { name: "Heal", type: "heal", power: 20, icon: "❤️" },
+    { name: "Cure", type: "heal", power: 25, icon: "✨" },
+    { name: "Revive", type: "heal", power: 30, icon: "🌿" },
+    { name: "Shield", type: "block", power: 0, icon: "🛡️", description: "Blocks half of next attack's damage" } ,
+    { name: "Egg", type: "attack", power: 28, icon: "🥚" } 
+];
+
+        // Game State
+        const gameState = {
+            player: null,
+            ai: null,
+            currentTurn: "player",
+            gameOver: false,
+            selectedCards: [],
+            specialMoveUsed: false
+        };
+
+        // DOM Elements
+        const elements = {
+            characterSelect: document.getElementById('character-select'),
+            characterGrid: document.getElementById('character-grid'),
+            deckBuilder: document.getElementById('deck-builder'),
+            cardOptions: document.getElementById('card-options'),
+            startGameBtn: document.getElementById('start-game-btn'),
+            gameContainer: document.getElementById('game-container'),
+            playerName: document.getElementById('player-name'),
+            aiName: document.getElementById('ai-name'),
+            playerAvatar: document.getElementById('player-avatar'),
+            aiAvatar: document.getElementById('ai-avatar'),
+            playerHealthBar: document.getElementById('player-health-bar'),
+            aiHealthBar: document.getElementById('ai-health-bar'),
+            playerHealthText: document.getElementById('player-health-text'),
+            aiHealthText: document.getElementById('ai-health-text'),
+            playerDeck: document.getElementById('player-deck'),
+            aiDeck: document.getElementById('ai-deck'),
+            battleLog: document.getElementById('battle-log'),
+            turnIndicator: document.getElementById('turn-indicator'),
+            restartBtn: document.getElementById('restart-btn'),
+            newGameBtn: document.getElementById('new-game-btn'),
+            specialMoveBtn: document.getElementById('special-move-btn')
+        };
+        
+        // Show notification
+        function showNotification(message, duration = 5000) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, duration);
+        }
+
+        // Initialize Character Selection
+        function initCharacterSelection() {
+            elements.characterGrid.innerHTML = '';
+            characters.forEach((character, index) => {
+                const charElement = document.createElement('div');
+                charElement.className = 'character-card';
+                charElement.innerHTML = `
+                    <img class="character-avatar" src="${character.avatar}" alt="${character.name}">
+                    <div class="character-name">${character.name}</div>
+                    <div class="special-move-info">
+                        <div class="special-move-name">${character.specialMove.name}</div>
+                        ${character.specialMove.description}
+                    </div>
+                `;
+                charElement.addEventListener('click', () => selectCharacter(character, charElement));
+                elements.characterGrid.appendChild(charElement);
+            });
+        }
+
+        // Select Character
+        function selectCharacter(character, element) {
+            // Remove previous selection
+            document.querySelectorAll('.character-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Set new selection
+            element.classList.add('selected');
+            gameState.player = {
+                name: character.name,
+                avatar: character.avatar,
+                health: 100,
+                deck: [],
+                isAI: false,
+                specialMove: character.specialMove,
+                specialMoveUsed: false,
+                extraTurns: 0,
+                shieldActive: false
+            };
+            
+            // Show deck builder
+            elements.deckBuilder.style.display = 'block';
+            initDeckBuilder();
+        }
+
+        // Initialize Deck Builder
+        function initDeckBuilder() {
+            elements.cardOptions.innerHTML = '';
+            allCardTypes.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card-option';
+                cardElement.innerHTML = `
+                    <div style="font-size: 2rem;">${card.icon}</div>
+                    <div>${card.name}</div>
+                    <div>${card.power} ${card.type === 'attack' ? 'DMG' : 'HEAL'}</div>
+                `;
+                cardElement.addEventListener('click', () => toggleCardSelection(card, cardElement));
+                elements.cardOptions.appendChild(cardElement);
+            });
+        }
+
+        // Toggle Card Selection
+        function toggleCardSelection(card, element) {
+            const index = gameState.selectedCards.findIndex(c => c.name === card.name);
+            
+            if (index === -1) {
+                if (gameState.selectedCards.length < 5) {
+                    gameState.selectedCards.push(card);
+                    element.classList.add('selected');
+                }
+            } else {
+                gameState.selectedCards.splice(index, 1);
+                element.classList.remove('selected');
+            }
+        }
+
+        // Start Game
+        function startGame() {
+            if (gameState.selectedCards.length !== 5) {
+                alert("Please select exactly 5 cards for your deck!");
+                return;
+            }
+            
+            // Hide character select, show game
+            elements.characterSelect.style.display = 'none';
+            elements.gameContainer.style.display = 'flex';
+            
+            // Set up AI with random character
+            const aiCharacter = characters[Math.floor(Math.random() * characters.length)];
+            gameState.ai = {
+                name: aiCharacter.name,
+                avatar: aiCharacter.avatar,
+                health: 100,
+                deck: generateRandomDeck(),
+                isAI: true,
+                specialMove: aiCharacter.specialMove,
+                specialMoveUsed: false,
+                extraTurns: 0,
+                shieldActive: false
+            };
+            
+            // Set player deck from selected cards
+            gameState.player.deck = [...gameState.selectedCards];
+            gameState.specialMoveUsed = false;
+            
+            // Initialize battle
+            initBattle();
+        }
+
+        // Generate Random Deck for AI
+       function generateRandomDeck() {
+    const deck = [];
+    const attackCards = allCardTypes.filter(card => card.type === "attack");
+    const healCards = allCardTypes.filter(card => card.type === "heal");
+    const blockCards = allCardTypes.filter(card => card.name === "Shield");
+    
+    // Add 3 attack (can include Egg), 1 heal, and 1 shield
+    for (let i = 0; i < 3; i++) {
+        deck.push({...attackCards[Math.floor(Math.random() * attackCards.length)]});
+    }
+    deck.push({...healCards[Math.floor(Math.random() * healCards.length)]});
+    deck.push({...blockCards[0]}); // Add shield
+    
+    return deck;
+}
+
+        // Initialize Battle
+        function initBattle() {
+            gameState.gameOver = false;
+            gameState.currentTurn = "player";
+            gameState.specialMoveUsed = false;
+            gameState.player.extraTurns = 0;
+            gameState.ai.extraTurns = 0;
+            
+            // Show turn indicator
+            elements.turnIndicator.style.display = 'block';
+            
+            // Update UI
+            updateUI();
+            addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.ai.name}`);
+            addToLog(`Player goes first!`);
+        }
+
+        // Update UI
+        function updateUI() {
+            // Player Info
+            elements.playerName.textContent = gameState.player.name;
+            elements.playerAvatar.src = gameState.player.avatar;
+            elements.playerHealthBar.style.width = `${gameState.player.health}%`;
+            elements.playerHealthText.textContent = `${gameState.player.health}/100`;
+
+            // AI Info
+            elements.aiName.textContent = gameState.ai.name;
+            elements.aiAvatar.src = gameState.ai.avatar;
+            elements.aiHealthBar.style.width = `${gameState.ai.health}%`;
+            elements.aiHealthText.textContent = `${gameState.ai.health}/100`;
+
+            // Turn Indicator
+            elements.turnIndicator.textContent = gameState.currentTurn === "player" ? "YOUR TURN" : "AI'S TURN";
+
+            // Special Move Button
+            elements.specialMoveBtn.disabled = 
+                gameState.currentTurn !== "player" || 
+                gameState.player.specialMoveUsed || 
+                gameState.gameOver;
+            
+            if (!gameState.player.specialMoveUsed) {
+                elements.specialMoveBtn.textContent = `USE ${gameState.player.specialMove.name}`;
+            } else {
+                elements.specialMoveBtn.textContent = "SPECIAL MOVE USED";
+            }
+
+            // Render Decks
+            renderDecks();
+        }
+
+        // Render Decks
+        function renderDecks() {
+            elements.playerDeck.innerHTML = '';
+            elements.aiDeck.innerHTML = '';
+
+            // Player Cards
+            gameState.player.deck.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = `card ${card.type}`;
+                cardElement.innerHTML = `
+                    <div class="card-name">${card.name}</div>
+                    <div class="card-icon">${card.icon}</div>
+                    <div class="card-value">${card.power}</div>
+                `;
+                cardElement.addEventListener('click', () => playCard(index));
+                elements.playerDeck.appendChild(cardElement);
+            });
+
+            // AI Cards (face down)
+            gameState.ai.deck.forEach(() => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card ai-card';
+                cardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
+                elements.aiDeck.appendChild(cardElement);
+            });
+        }
+
+        // Play Card
+function playCard(cardIndex) {
+    if (gameState.gameOver || gameState.currentTurn !== "player") return;
+
+    const player = gameState.player;
+    const ai = gameState.ai;
+    const card = player.deck[cardIndex];
+
+    // Animation
+    const cardElement = elements.playerDeck.children[cardIndex];
+    cardElement.classList.add('card-play-anim');
+
+    // Apply effect after animation
+    setTimeout(() => {
+        if (card.type === "attack" || card.name === "Egg") {
+            let damage = card.power;
+            
+            // Check for AI shield
+            if (ai.shieldActive) {
+                damage = Math.max(1, Math.floor(damage / 2)); // Halve damage (minimum 1)
+                addToLog(`${ai.name}'s Shield reduces damage to ${damage}!`);
+                ai.shieldActive = false;
+                
+                // Visual effect for shield blocking
+                const shieldEffect = document.createElement('div');
+                shieldEffect.className = 'shield-effect';
+                cardElement.appendChild(shieldEffect);
+                setTimeout(() => shieldEffect.remove(), 500);
+            }
+            
+            ai.health -= damage;
+            if (ai.health < 0) ai.health = 0;
+            addToLog(`${player.name} hits with ${card.name} for ${damage} damage!`);
+            cardElement.classList.add('damage-effect');
+            
+            // Play attack sound
+        
+        } 
+        else if (card.type === "heal") {
+            player.health += card.power;
+            if (player.health > 100) player.health = 100;
+            addToLog(`${player.name} heals for ${card.power} HP!`);
+            cardElement.classList.add('heal-effect');
+            
+            // Play heal sound
+            
+        }
+        else if (card.name === "Shield") {
+            // Shield activates for one turn
+            player.shieldActive = true;
+            addToLog(`${player.name} activates Shield! Next attack will be halved!`);
+            cardElement.classList.add('block-effect');
+            
+            // Visual effect for shield activation
+            const shieldActivate = document.createElement('div');
+            shieldActivate.className = 'shield-activate';
+            cardElement.appendChild(shieldActivate);
+            setTimeout(() => shieldActivate.remove(), 800);
+            
+            // Play shield sound
+            
+        }
+
+        // Remove used card
+        player.deck.splice(cardIndex, 1);
+
+        // Check if game is over
+        if (ai.health <= 0 || player.health <= 0) {
+            endGame();
+            return;
+        }
+
+        // If deck is empty, draw new cards
+        if (player.deck.length === 0) {
+            player.deck = [...gameState.selectedCards];
+            addToLog(`${player.name} draws a new hand!`);
+        }
+
+        // Check for extra turns from special move
+        if (player.extraTurns && player.extraTurns > 0) {
+            player.extraTurns--;
+            addToLog(`${player.name} gets an extra turn!`);
+            updateUI();
+        } else {
+            // Switch to AI turn
+            gameState.currentTurn = "ai";
+            updateUI();
+
+            // AI moves after delay
+            setTimeout(() => {
+                if (!gameState.gameOver) {
+                    makeAIMove();
+                }
+            }, 1500);
+        }
+    }, 300);
+}
+
+        // Use Special Move
+        function useSpecialMove() {
+            if (gameState.gameOver || gameState.currentTurn !== "player" || gameState.player.specialMoveUsed) return;
+
+            const player = gameState.player;
+            const ai = gameState.ai;
+
+            // Mark special move as used
+            player.specialMoveUsed = true;
+            
+            // Show notification
+            showNotification(`${player.specialMove.name} USED!`, 1500);
+            
+            // Apply special move effect
+            const message = player.specialMove.effect(player, ai);
+            addToLog(message);
+            
+            // Check if game is over
+            if (ai.health <= 0 || player.health <= 0) {
+                endGame();
+                return;
+            }
+            
+            // Update UI
+            updateUI();
+            
+            // If special move doesn't grant another turn, switch to AI
+            if (!(player.specialMove.name === "Botman" || player.specialMove.name === "Queen" || player.specialMove.name === "Love Bomb")) {
+                setTimeout(() => {
+                    gameState.currentTurn = "ai";
+                    updateUI();
+                    
+                    // AI moves after delay
+                    setTimeout(() => {
+                        if (!gameState.gameOver) {
+                            makeAIMove();
+                        }
+                    }, 1000);
+                }, 500);
+            }
+        }
+
+        // AI Move
+      function makeAIMove() {
+    if (gameState.gameOver || gameState.currentTurn !== "ai") {
+        // Ensure panels are in correct state
+        elements.gameContainer.style.display = 'flex';
+        elements.characterSelect.style.display = 'none';
+        return;
+    }
+
+    const ai = gameState.ai;
+    const player = gameState.player;
+
+    // 1. Special move check (unchanged)
+    if (!ai.specialMoveUsed) {
+        const shouldUseSpecial = 
+            (ai.specialMove.name === "Botman" || 
+             ai.specialMove.name === "Queen" || 
+             ai.specialMove.name === "Love Bomb") ||
+            (ai.health <= 50 && ai.specialMove.effect.toString().includes('user.health')) ||
+            (player.health <= 50 && ai.specialMove.effect.toString().includes('target.health'));
+        
+        if (shouldUseSpecial) {
+            useAISpecialMove();
+            return;
+        }
+    }
+
+    // 2. Improved card selection - Shield won't be used first
+    let cardIndex = 0;
+    let selectedCard;
+    
+    // Get all card types
+    const attacks = ai.deck.filter(card => card.type === "attack" || card.name === "Egg");
+    const heals = ai.deck.filter(card => card.type === "heal");
+    const shield = ai.deck.find(card => card.name === "Shield");
+
+    // Calculate player's attack threat
+    const playerThreat = gameState.player.deck.reduce((sum, card) => {
+        return sum + (card.type === "attack" ? card.power : 0);
+    }, 0);
+
+    // Decision logic
+    if (ai.health <= 30) {
+        // Priority 1: Heal when low
+        if (heals.length > 0) {
+            selectedCard = heals[0];
+        } 
+        // Priority 2: Strong attack
+        else if (attacks.length > 0) {
+            selectedCard = attacks.reduce((a, b) => a.power > b.power ? a : b);
+        }
+        // Priority 3: Shield only if high threat
+        else if (shield && playerThreat >= 30) {
+            selectedCard = shield;
+        }
+    } 
+    else if (ai.health <= 60) {
+        // Priority 1: Strong attack
+        if (attacks.length > 0) {
+            selectedCard = attacks.reduce((a, b) => a.power > b.power ? a : b);
+        }
+        // Priority 2: Shield only if very high threat
+        else if (shield && playerThreat >= 40) {
+            selectedCard = shield;
+        }
+    }
+    else {
+        // Always prefer attacks when healthy
+        if (attacks.length > 0) {
+            selectedCard = attacks.reduce((a, b) => a.power > b.power ? a : b);
+        }
+        // Shield only if no other options
+        else if (shield) {
+            selectedCard = shield;
+        }
+    }
+
+    // Fallback to random card if no selection
+    if (!selectedCard) {
+        cardIndex = Math.floor(Math.random() * ai.deck.length);
+        selectedCard = ai.deck[cardIndex];
+    } else {
+        cardIndex = ai.deck.findIndex(card => card === selectedCard);
+    }
+
+    // 3. Execute the move
+    const cardElement = elements.aiDeck.children[cardIndex];
+    
+    // Reveal card
+    cardElement.innerHTML = `
+        <div class="card-name">${selectedCard.name}</div>
+        <div class="card-icon ${selectedCard.name === "Egg" ? "egg" : selectedCard.type}">${selectedCard.icon}</div>
+        <div class="card-value">${selectedCard.name === "Shield" ? "½" : selectedCard.power}</div>
+    `;
+    cardElement.classList.add('card-play-anim');
+
+    // Apply effects after animation
+    setTimeout(() => {
+        // Ensure panels stay hidden
+        elements.characterSelect.style.display = 'none';
+        elements.gameContainer.style.display = 'flex';
+
+        if (selectedCard.type === "attack" || selectedCard.name === "Egg") {
+            let damage = selectedCard.power;
+            
+            if (player.shieldActive) {
+                damage = Math.max(1, Math.floor(damage / 2));
+                addToLog(`${player.name}'s Shield reduces damage to ${damage}!`);
+                player.shieldActive = false;
+            }
+            
+            player.health -= damage;
+            if (player.health < 0) player.health = 0;
+            addToLog(`${ai.name} attacks with ${selectedCard.name} for ${damage} damage!`);
+        } 
+        else if (selectedCard.type === "heal") {
+            ai.health += selectedCard.power;
+            if (ai.health > 100) ai.health = 100;
+            addToLog(`${ai.name} heals for ${selectedCard.power} HP!`);
+        }
+        else if (selectedCard.name === "Shield") {
+            ai.shieldActive = true;
+            addToLog(`${ai.name} activates Shield! Next attack will be halved!`);
+        }
+
+        // Remove used card
+        ai.deck.splice(cardIndex, 1);
+
+        // Check game over
+        if (player.health <= 0 || ai.health <= 0) {
+            endGame();
+            return;
+        }
+
+        // Replenish deck if empty
+        if (ai.deck.length === 0) {
+            ai.deck = generateRandomDeck();
+            addToLog(`${ai.name} draws a new hand!`);
+        }
+
+        // Handle extra turns
+        if (ai.extraTurns > 0) {
+            ai.extraTurns--;
+            addToLog(`${ai.name} gets an extra turn!`);
+            setTimeout(() => makeAIMove(), 1000);
+        } else {
+            gameState.currentTurn = "player";
+        }
+        
+        updateUI();
+    }, 300);
+}
+        // AI Special Move
+        function useAISpecialMove() {
+            const ai = gameState.ai;
+            const player = gameState.player;
+
+            // Mark special move as used
+            ai.specialMoveUsed = true;
+            
+            // Show notification
+            showNotification(`${ai.specialMove.name} USED!`, 500);
+            
+            // Apply special move effect
+            const message = ai.specialMove.effect(ai, player);
+            addToLog(message);
+            
+            // Check if game is over
+            if (player.health <= 0 || ai.health <= 0) {
+                endGame();
+                return;
+            }
+            
+            // Update UI
+            updateUI();
+            
+            // If special move grants another turn, AI gets another move
+            if (ai.specialMove.name === "Botman" || ai.specialMove.name === "Queen" || ai.specialMove.name === "Love Bomb") {
+                setTimeout(() => {
+                    if (!gameState.gameOver) {
+                        makeAIMove();
+                    }
+                }, 1000);
+            } else {
+                // Switch back to player
+                setTimeout(() => {
+                    gameState.currentTurn = "player";
+                    updateUI();
+                }, 1000);
+            }
+        }
+
+        // End Game
+        function endGame() {
+            gameState.gameOver = true;
+            const player = gameState.player;
+            const ai = gameState.ai;
+
+            // Force health bars to update to 0 if needed
+            if (player.health <= 0) {
+                player.health = 0;
+                elements.playerHealthBar.style.width = '0%';
+                elements.playerHealthText.textContent = '0/100';
+            }
+            if (ai.health <= 0) {
+                ai.health = 0;
+                elements.aiHealthBar.style.width = '0%';
+                elements.aiHealthText.textContent = '0/100';
+            }
+
+            // Clear any existing effects
+            document.querySelectorAll('.victory-effect, .defeat-effect, .draw-effect').forEach(el => el.remove());
+
+            let winnerMessage = "";
+            let effect = null;
+            
+            if (player.health <= 0 && ai.health <= 0) {
+                winnerMessage = "DRAW!";
+                addToLog("The battle ends in a draw!");
+                effect = createEffect('draw');
+            } else if (player.health <= 0) {
+                winnerMessage = `${ai.name} WINS!`;
+                addToLog(`${ai.name} wins the battle!`);
+                effect = createEffect('defeat');
+            } else {
+                winnerMessage = `${player.name} WINS!`;
+                addToLog(`${player.name} wins the battle!`);
+                effect = createEffect('victory');
+            }
+
+            // Show effect and notification
+            document.body.appendChild(effect);
+            showNotification(winnerMessage);
+            elements.turnIndicator.style.display = 'none';
+
+            // Disable all game controls
+            document.querySelectorAll('.card').forEach(card => {
+                card.style.pointerEvents = 'none';
+            });
+            elements.specialMoveBtn.disabled = true;
+            
+            // Force UI update
+            updateUI();
+        }
+
+        // Helper function to create effects
+        function createEffect(type) {
+            const effect = document.createElement('div');
+            effect.className = `${type}-effect`;
+            
+            // Remove effect after animation completes
+            setTimeout(() => {
+                effect.remove();
+            }, 3000);
+            
+            return effect;
+        }
+
+        // Add to Battle Log
+        function addToLog(message) {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = `> ${message}`;
+            elements.battleLog.appendChild(logEntry);
+            elements.battleLog.scrollTop = elements.battleLog.scrollHeight;
+        }
+
+        function restartMatch() {
+    if (!gameState.player || !gameState.ai) return;
+    
+    // Reset health and game state
+    gameState.player.health = 100;
+    gameState.ai.health = 100;
+    gameState.currentTurn = "player";
+    gameState.gameOver = false;
+    gameState.player.specialMoveUsed = false;
+    gameState.ai.specialMoveUsed = false;
+    gameState.player.extraTurns = 0;
+    gameState.ai.extraTurns = 0;
+    
+    // Reset decks to original state
+    gameState.player.deck = [...gameState.selectedCards];
+    gameState.ai.deck = generateRandomDeck();
+    
+    // Clear battle log
+    elements.battleLog.innerHTML = '<div class="log-entry">Match restarted!</div>';
+    
+    // Update UI
+    updateUI();
+    addToLog(`Match restarted: ${gameState.player.name} vs ${gameState.ai.name}`);
+    addToLog(`Player goes first!`);
+    
+    // Clear any existing effects
+    document.querySelectorAll('.victory-effect, .defeat-effect, .draw-effect').forEach(el => el.remove());
+}
+
+        // New Game
+        function newGame() {
+            // Hide game UI
+            elements.gameContainer.style.display = 'none';
+            
+            // Show character selection
+            elements.characterSelect.style.display = 'flex';
+            elements.deckBuilder.style.display = 'none';
+            
+            // Reset game state
+            gameState.selectedCards = [];
+            gameState.player = null;
+            gameState.ai = null;
+            
+            // Reinitialize character selection
+            initCharacterSelection();
+        }
+
+        // Event Listeners
+        elements.startGameBtn.addEventListener('click', startGame);
+        elements.newGameBtn.addEventListener('click', newGame);
+        elements.restartBtn.addEventListener('click', restartMatch);
+        elements.specialMoveBtn.addEventListener('click', useSpecialMove);
+
+        // Initialize Game
+        initCharacterSelection();
+    </script>
+</body>
+</html>

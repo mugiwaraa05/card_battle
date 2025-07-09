@@ -776,9 +776,232 @@
                 padding: 8px 15px;
             }
         }
+      /* Add to your CSS */
+@keyframes shuffleDeck {
+    0% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-20px) rotate(-5deg); }
+    50% { transform: translateY(0) rotate(0deg); }
+    75% { transform: translateY(-20px) rotate(5deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes dealCard {
+    0% {
+        transform: translate(-50%, -50%) rotateY(0deg) scale(0.8);
+        opacity: 0;
+        z-index: 10;
+    }
+    20% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotateY(180deg) scale(1);
+    }
+    100% {
+        transform: translate(0, 0) rotateY(0deg) scale(1);
+        opacity: 1;
+        z-index: 1;
+    }
+}
+
+@keyframes dealAICard {
+    0% {
+        transform: translate(-50%, -50%) rotateY(0deg) scale(0.8);
+        opacity: 0;
+        z-index: 10;
+    }
+    20% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotateY(180deg) scale(1);
+    }
+    100% {
+        transform: translate(0, 0) rotateY(180deg) scale(1);
+        opacity: 1;
+        z-index: 1;
+    }
+}
+
+.deck-shuffle {
+    animation: shuffleDeck 0.5s ease-in-out 3;
+}
+
+.card-deal-animation {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    animation: dealCard 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    transform-origin: center;
+}
+
+.ai-card-deal-animation {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    animation: dealAICard 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    transform-origin: center;
+}
+
+.deck-placeholder {
+    position: relative;
+    width: var(--card-width);
+    height: var(--card-height);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin: 0 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 2rem;
+}
+#music-play-btn {
+    background: linear-gradient(45deg, var(--neon-pink), var(--neon-purple));
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 0 10px var(--neon-purple);
+    z-index: 1000;
+}
+
+#music-play-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px var(--neon-pink);
+} 
+/* Main Menu Styles */
+.main-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* Ensures vertical centering */
+    width: 100%;
+    min-height: 100vh; /* Ensures full viewport height coverage */
+    padding: 20px; /* Prevents content from touching edges */
+    box-sizing: border-box; /* Ensures padding doesn't affect width */
+    text-align: center; /* Centers text for all child elements */
+}
+
+.main-menu h1 {
+    color: var(--neon-pink);
+    text-shadow: 0 0 10px var(--neon-pink);
+    margin-bottom: 50px;
+    font-size: 3rem;
+    text-align: center;
+}
+
+.menu-options {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%; /* Takes full width on mobile */
+    max-width: 300px; /* Limits width on larger screens */
+    align-items: center; /* Ensures buttons stay centered */
+}
+
+.menu-btn {
+    background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 30px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 0 15px var(--neon-blue);
+    text-align: center;
+}
+
+.menu-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px var(--neon-pink);
+}
+
+@media (max-width: 768px) {
+    .main-menu h1 {
+        font-size: 2rem;
+    }
+    .menu-options {
+        width: 250px;
+    }
+    .menu-btn {
+        padding: 12px 25px;
+        font-size: 1rem;
+    }
+}   
+/* Add this to your existing media queries section */
+@media (max-width: 768px) {
+    .main-menu {
+        padding: 15px;
+        text-align: center;
+    }
+
+    .main-menu h1 {
+        font-size: 2rem;
+        margin-bottom: 30px;
+    }
+
+    .menu-options {
+        width: 100%;
+        max-width: 280px;
+    }
+
+    .menu-btn {
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-menu h1 {
+        font-size: 1.8rem;
+        margin-bottom: 20px;
+    }
+
+    .menu-btn {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+    }
+} 
     </style>
 </head>
+<!-- Add this in the head section after the styles -->
+<audio id="attack-sound" src="./sounds/slash.wav" preload="auto"></audio>
+<audio id="fireball-sound" src="./sounds/fire.wav" preload="auto"></audio>
+<audio id="crush-sound" src="./sounds/crush.wav" preload="auto"></audio>
+<audio id="egg-sound" src="./sounds/egg.ogg" preload="auto"></audio>
+<audio id="heal-sound" src="./sounds/heal.wav" preload="auto"></audio>
+<audio id="special-sound" src="./sounds/special.wav" preload="auto"></audio>
+<audio id="shield-sound" src="./sounds/shield.wav" preload="auto"></audio>
+<audio id="victory-sound" src="./sounds/victory.mp3" preload="auto"></audio>
+<audio id="defeat-sound" src="./sounds/defeat.wav" preload="auto"></audio>
+<audio id="draw-sound" src="./sounds/draw.wav" preload="auto"></audio>
+<audio id="dominance-sound" src="./sounds/dominance.mp3" preload="auto"></audio>
+<audio id="cat-sound" src="./sounds/cat.mp3" preload="auto"></audio>
+<audio id="clown-sound" src="./sounds/clown.mp3" preload="auto"></audio>
+<audio id="batman-sound" src="./sounds/batman.mp3" preload="auto"></audio>
+<audio id="love-sound" src="./sounds/love.mp3" preload="auto"></audio>
+<audio id="eggy-sound" src="./sounds/egg.mp3" preload="auto"></audio>
+<audio id="healer-sound" src="./sounds/healer.mp3" preload="auto"></audio>
+<audio id="simp-sound" src="./sounds/simp.mp3" preload="auto"></audio>
+<audio id="matrix-sound" src="./sounds/matrix.mp3" preload="auto"></audio>
+<audio id="dictator-sound" src="./sounds/dictator.mp3" preload="auto"></audio>
+<audio id="bg-music" loop>
+  <source src="./sounds/battle.mp3" type="audio/mpeg">
+  Play Music
+</audio>
 <body>
+    <!-- Main Menu Screen -->
+<div class="main-menu" id="main-menu">
+    <h1>SUCCINCT CARD BATTLE</h1>
+    <div class="menu-options">
+        <button class="menu-btn" id="normal-mode-btn">NORMAL MODE</button>
+        <button class="menu-btn" id="multiplayer-btn">MULTIPLAYER</button>
+        <button class="menu-btn" id="quit-btn">QUIT</button>
+    </div>
+</div>
     <!-- Character Selection Screen -->
     <div class="character-select" id="character-select">
         <h1>SELECT YOUR FIGHTER</h1>
@@ -810,6 +1033,7 @@
                     </div>
                 </div>
                 <div class="deck-area" id="player-deck">
+                <div class="deck-placeholder">✧</div>
                     <!-- Player cards will be added here -->
                 </div>
                 <button class="special-move-btn" id="special-move-btn" disabled>USE SPECIAL MOVE</button>
@@ -828,6 +1052,7 @@
                     </div>
                 </div>
                 <div class="deck-area" id="ai-deck">
+                     <div class="deck-placeholder">✧</div>
                     <!-- AI cards will be added here -->
                 </div>
             </div>
@@ -1003,6 +1228,8 @@
                     }
                 }
             },
+
+            
             { 
                 name: "Wylo", 
                 avatar: "./Avatars/Wylo.jpg",
@@ -1015,7 +1242,89 @@
                         return `${user.name} uses The Clown! Deals 35 damage to himself!`;
                     }
                 }
+            },
+
+          { 
+    name: "Serkan", 
+    avatar: "./Avatars/Serkan.jpg",
+    specialMove: {
+        name: "Matrix Glitch",
+        description: "Your next attack deals double damage",
+        effect: (user, target) => {
+            // Set flag for next attack
+            user.nextAttackDoubled = true;
+            return `${user.name} uses Matrix Glitch! Next attack will deal double damage!`;
+        }
+    }
+},
+    { 
+        name: "Jekyde", 
+        avatar: "./Avatars/Jekyde.jpg",
+        specialMove: {
+            name: "Mr Shipper",
+            description: "+20 HP to himself and -20 HP to opponent",
+            effect: (user, target) => {
+                // Heal user
+                user.health += 20;
+                if (user.health > 100) user.health = 100;
+                
+                // Damage opponent
+                target.health -= 20;
+                if (target.health < 0) target.health = 0;
+                
+                return `${user.name} uses Mr Shipper! +20 HP to himself and -20 HP to ${target.name}!`;
             }
+        }
+    },
+    { 
+        name: "ZkTug", 
+        avatar: "./Avatars/Tug.jpg",
+        specialMove: {
+            name: "Proofer Regen",
+            description: "+40 HP to himself",
+            effect: (user, target) => {
+                user.health += 40;
+                if (user.health > 100) user.health = 100;
+                return `${user.name} uses Proofer Regen! +40 HP!`;
+            }
+        }
+    },
+   { 
+    name: "Shoeb", 
+    avatar: "./Avatars/Shoeb.jpg",
+    specialMove: {
+        name: "The Don",
+        description: "Deals 30 damage to opponent and 10 damage to himself",
+        effect: (user, target) => {
+            target.health -= 30;
+            if (target.health < 0) target.health = 0;
+            user.health -= 10;
+            if (user.health < 0) user.health = 0;
+            return `${user.name} uses The Don! Deals 30 damage to ${target.name} and 10 damage to himself!`;
+        }
+    }
+},
+{ 
+    name: "Rob", 
+    avatar: "./Avatars/Rob.jpg",
+    specialMove: {
+        name: "Mr Simp",
+        description: "Deals 30 damage to himself against female characters, or 10 damage to male opponents",
+        effect: (user, target) => {
+            const femaleCharacters = ["Uma", "Cocowaves", "Chixxey", "Pix"];
+            if (femaleCharacters.includes(target.name)) {
+                user.health -= 30;
+                if (user.health < 0) user.health = 0;
+                return `${user.name} uses Mr Simp against ${target.name}! Deals 30 damage to himself!`;
+            } else {
+                target.health -= 10;
+                if (target.health < 0) target.health = 0;
+                return `${user.name} uses Mr Simp! Deals 10 damage to ${target.name}!`;
+            }
+        }
+    }
+}
+            
         ];
 
       const allCardTypes = [
@@ -1023,9 +1332,9 @@
     { name: "Fireball", type: "attack", power: 20, icon: "🔥" },
     { name: "Crush", type: "attack", power: 25, icon: "🔨" },
     { name: "Pierce", type: "attack", power: 18, icon: "🗡️" },
-    { name: "Heal", type: "heal", power: 20, icon: "❤️" },
-    { name: "Cure", type: "heal", power: 25, icon: "✨" },
-    { name: "Revive", type: "heal", power: 30, icon: "🌿" },
+    { name: "Heal", type: "heal", power: 10, icon: "❤️" },
+    { name: "Cure", type: "heal", power: 15, icon: "✨" },
+    { name: "Revive", type: "heal", power: 15, icon: "🌿" },
     { name: "Shield", type: "block", power: 0, icon: "🛡️", description: "Blocks half of next attack's damage" } ,
     { name: "Egg", type: "attack", power: 28, icon: "🥚" } 
 ];
@@ -1037,7 +1346,8 @@
             currentTurn: "player",
             gameOver: false,
             selectedCards: [],
-            specialMoveUsed: false
+            specialMoveUsed: false,
+            nextAttackDoubled:false
         };
 
         // DOM Elements
@@ -1062,8 +1372,152 @@
             turnIndicator: document.getElementById('turn-indicator'),
             restartBtn: document.getElementById('restart-btn'),
             newGameBtn: document.getElementById('new-game-btn'),
-            specialMoveBtn: document.getElementById('special-move-btn')
+            specialMoveBtn: document.getElementById('special-move-btn'),
+            mainMenu: document.getElementById('main-menu'),
+            normalModeBtn: document.getElementById('normal-mode-btn'),
+            multiplayerBtn: document.getElementById('multiplayer-btn'),
+            quitBtn: document.getElementById('quit-btn')
         };
+
+
+        // Add this near your other sound functions
+function playBackgroundMusic() {
+    const bgMusic = document.getElementById('bg-music');
+    bgMusic.volume = 0.15; // Set lower volume so it's not overwhelming
+    // Try to play, and if blocked, show a play button
+    const promise = bgMusic.play();
+    
+    if (promise !== undefined) {
+        promise.catch(error => {
+            // Autoplay was prevented, show a play button
+            showMusicPlayButton();
+        });
+    }
+}
+
+function showMusicPlayButton() {
+    const playButton = document.createElement('button');
+    playButton.id = 'music-play-btn';
+    playButton.textContent = '▶ Play Music';
+    playButton.style.position = 'fixed';
+    playButton.style.bottom = '20px';
+    playButton.style.left = '20px';
+    playButton.style.zIndex = '100';
+    playButton.style.padding = '10px 15px';
+    playButton.style.borderRadius = '20px';
+    playButton.style.background = 'linear-gradient(45deg, var(--neon-pink), var(--neon-purple))';
+    playButton.style.color = 'white';
+    playButton.style.border = 'none';
+    playButton.style.cursor = 'pointer';
+    
+    playButton.addEventListener('click', () => {
+        document.getElementById('bg-music').play();
+        playButton.remove();
+    });
+    
+    document.body.appendChild(playButton);
+}
+
+        function playAttackSound() {
+    const sound = document.getElementById('attack-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+
+function playCrushSound() {
+    const sound = document.getElementById('crush-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playEggSound() {
+    const sound = document.getElementById('egg-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+
+function playHealSound() {
+    const sound = document.getElementById('heal-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playEggySound() {
+    const sound = document.getElementById('eggy-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playMatrixSound() {
+    const sound = document.getElementById('matrix-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playLoveSound() {
+    const sound = document.getElementById('love-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playCatSound() {
+    const sound = document.getElementById('cat-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playDictatorSound() {
+    const sound = document.getElementById('dictator-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playHealerSound() {
+    const sound = document.getElementById('healer-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playSimpSound() {
+    const sound = document.getElementById('simp-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+
+function playShieldSound() {
+    const sound = document.getElementById('shield-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playFireballSound() {
+    const sound = document.getElementById('fireball-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playClownSound() {
+    const sound = document.getElementById('clown-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+
+function playVictorySound() {
+    const sound = document.getElementById('victory-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playBatmanSound() {
+    const sound = document.getElementById('batman-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playDominanceSound() {
+    const sound = document.getElementById('dominance-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+
+function playDefeatSound() {
+    const sound = document.getElementById('defeat-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
+function playSpecialSound() {
+    const sound = document.getElementById('special-sound');
+    sound.currentTime = 0;
+    sound.play();
+}
         
         // Show notification
         function showNotification(message, duration = 5000) {
@@ -1114,7 +1568,10 @@
                 specialMove: character.specialMove,
                 specialMoveUsed: false,
                 extraTurns: 0,
-                shieldActive: false
+                shieldActive: false,
+                glitchActive: false,
+                glitchTurns: 0,
+                nextAttackDoubled: false
             };
             
             // Show deck builder
@@ -1159,7 +1616,7 @@
                 alert("Please select exactly 5 cards for your deck!");
                 return;
             }
-            
+             playBackgroundMusic();
             // Hide character select, show game
             elements.characterSelect.style.display = 'none';
             elements.gameContainer.style.display = 'flex';
@@ -1175,7 +1632,9 @@
                 specialMove: aiCharacter.specialMove,
                 specialMoveUsed: false,
                 extraTurns: 0,
-                shieldActive: false
+                shieldActive: false,
+                glitchActive: false,
+                glitchTurns: 0
             };
             
             // Set player deck from selected cards
@@ -1184,7 +1643,104 @@
             
             // Initialize battle
             initBattle();
+
+            
         }
+       function animateCardsDrop() {
+    // Clear existing cards but keep placeholders
+    const playerCards = elements.playerDeck.querySelectorAll('.card:not(.deck-placeholder)');
+    const aiCards = elements.aiDeck.querySelectorAll('.card:not(.deck-placeholder)');
+    playerCards.forEach(card => card.remove());
+    aiCards.forEach(card => card.remove());
+    
+    // Create a central deck element for animation
+    const centralDeck = document.createElement('div');
+    centralDeck.className = 'deck-placeholder deck-shuffle';
+    centralDeck.style.position = 'fixed';
+    centralDeck.style.top = '50%';
+    centralDeck.style.left = '50%';
+    centralDeck.style.transform = 'translate(-50%, -50%)';
+    centralDeck.style.zIndex = '100';
+    document.body.appendChild(centralDeck);
+    
+    // First show the deck being shuffled
+    setTimeout(() => {
+        // After shuffle animation completes, deal exactly 5 cards to each player
+        centralDeck.remove();
+        dealCards();
+    }, 1500);
+}
+
+function dealCards() {
+    // Clear existing cards but keep placeholders
+    elements.playerDeck.innerHTML = '<div class="deck-placeholder">✧</div>';
+    elements.aiDeck.innerHTML = '<div class="deck-placeholder">✧</div>';
+    
+    // Deal exactly 5 player cards (face up)
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            // Create card element with all details
+            const card = gameState.player.deck[i];
+            const cardElement = document.createElement('div');
+            cardElement.className = `card ${card.type}`;
+            cardElement.innerHTML = `
+                <div class="card-name">${card.name}</div>
+                <div class="card-icon">${card.icon}</div>
+                <div class="card-value">${card.power}</div>
+            `;
+            
+            // Add animation class
+            cardElement.classList.add('card-deal-animation');
+            elements.playerDeck.appendChild(cardElement);
+            
+            // After animation completes
+            setTimeout(() => {
+                cardElement.classList.remove('card-deal-animation');
+                cardElement.style.position = '';
+                cardElement.style.top = '';
+                cardElement.style.left = '';
+                
+                // Add click handler with correct index
+                cardElement.addEventListener('click', () => playCard(i));
+            }, 800);
+        }, i * 300); // Stagger each card by 300ms
+    }
+    
+    // Deal exactly 5 AI cards (face down)
+    for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+            const cardElement = document.createElement('div');
+            cardElement.className = 'card ai-card';
+            cardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
+            cardElement.classList.add('ai-card-deal-animation');
+            elements.aiDeck.appendChild(cardElement);
+            
+            setTimeout(() => {
+                cardElement.classList.remove('ai-card-deal-animation');
+                cardElement.style.position = '';
+                cardElement.style.top = '';
+                cardElement.style.left = '';
+            }, 800);
+        }, (i + 5) * 300); // Start AI cards after player cards
+    }
+    
+    // Final setup after all animations complete
+    setTimeout(() => {
+        // Remove placeholders
+        elements.playerDeck.querySelector('.deck-placeholder')?.remove();
+        elements.aiDeck.querySelector('.deck-placeholder')?.remove();
+        
+        // Update game state
+        elements.turnIndicator.style.display = 'block';
+        addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.ai.name}`);
+        addToLog(`Player goes first!`);
+    }, 3000); // Wait for all animations to finish 
+}
+function getRandomCard() {
+    // Helper function to get a random card from all available types
+    const randomIndex = Math.floor(Math.random() * allCardTypes.length);
+    return {...allCardTypes[randomIndex]};
+}
 
         // Generate Random Deck for AI
        function generateRandomDeck() {
@@ -1202,6 +1758,16 @@
     
     return deck;
 }
+function createCardElement(card) {
+    const cardElement = document.createElement('div');
+    cardElement.className = `card ${card.type}`;
+    cardElement.innerHTML = `
+        <div class="card-name">${card.name}</div>
+        <div class="card-icon">${card.icon}</div>
+        <div class="card-value">${card.power}</div>
+    `;
+    return cardElement;
+}
 
         // Initialize Battle
         function initBattle() {
@@ -1212,12 +1778,18 @@
             gameState.ai.extraTurns = 0;
             
             // Show turn indicator
-            elements.turnIndicator.style.display = 'block';
+            elements.turnIndicator.style.display = 'none';
             
             // Update UI
             updateUI();
-            addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.ai.name}`);
-            addToLog(`Player goes first!`);
+
+            animateCardsDrop();
+
+             const totalCards = gameState.player.deck.length + gameState.ai.deck.length;
+    setTimeout(() => {
+        elements.turnIndicator.style.display = 'block';
+    }, totalCards * 300 + 1000);
+           
         }
 
         // Update UI
@@ -1288,18 +1860,43 @@ function playCard(cardIndex) {
     const ai = gameState.ai;
     const card = player.deck[cardIndex];
 
+    // Play sound based on card type
+    if (card.name === "Crush") {
+        playCrushSound();
+    } else if (card.name === "Egg") {
+        playEggSound();   
+    } else if (card.name === "Fireball") {
+        playFireballSound();
+    } else if (card.type === "attack") {
+        playAttackSound();
+    } else if (card.type === "heal") {
+        playHealSound();
+    } else if (card.name === "Shield") {
+        playShieldSound();
+    }
+
     // Animation
     const cardElement = elements.playerDeck.children[cardIndex];
     cardElement.classList.add('card-play-anim');
 
     // Apply effect after animation
     setTimeout(() => {
+        // Clear animation class
+        cardElement.classList.remove('card-play-anim');
+
         if (card.type === "attack" || card.name === "Egg") {
             let damage = card.power;
             
+            // Check for double attack
+    if (player.nextAttackDoubled) {
+        damage *= 2;
+        addToLog(`Matrix Glitch doubles ${card.name}'s power to ${damage}!`);
+        player.nextAttackDoubled = false; // Reset after use
+    }
+            
             // Check for AI shield
             if (ai.shieldActive) {
-                damage = Math.max(1, Math.floor(damage / 2)); // Halve damage (minimum 1)
+                damage = Math.max(1, Math.floor(damage / 2));
                 addToLog(`${ai.name}'s Shield reduces damage to ${damage}!`);
                 ai.shieldActive = false;
                 
@@ -1315,17 +1912,24 @@ function playCard(cardIndex) {
             addToLog(`${player.name} hits with ${card.name} for ${damage} damage!`);
             cardElement.classList.add('damage-effect');
             
-            // Play attack sound
-        
+            // Update AI health display immediately
+            elements.aiHealthBar.style.width = `${ai.health}%`;
+            elements.aiHealthText.textContent = `${ai.health}/100`;
         } 
         else if (card.type === "heal") {
-            player.health += card.power;
+            let healAmount = card.power;
+            
+            // Apply Matrix Glitch effect if active
+           
+            
+            player.health += healAmount;
             if (player.health > 100) player.health = 100;
-            addToLog(`${player.name} heals for ${card.power} HP!`);
+            addToLog(`${player.name} heals for ${healAmount} HP!`);
             cardElement.classList.add('heal-effect');
             
-            // Play heal sound
-            
+            // Update player health display immediately
+            elements.playerHealthBar.style.width = `${player.health}%`;
+            elements.playerHealthText.textContent = `${player.health}/100`;
         }
         else if (card.name === "Shield") {
             // Shield activates for one turn
@@ -1338,13 +1942,29 @@ function playCard(cardIndex) {
             shieldActivate.className = 'shield-activate';
             cardElement.appendChild(shieldActivate);
             setTimeout(() => shieldActivate.remove(), 800);
-            
-            // Play shield sound
-            
         }
 
         // Remove used card
         player.deck.splice(cardIndex, 1);
+
+        // Draw new card if we have less than 5
+        if (player.deck.length < 5) {
+            const newCard = {...gameState.selectedCards[Math.floor(Math.random() * gameState.selectedCards.length)]};
+            player.deck.push(newCard);
+            
+            // Animate the new card being drawn
+            setTimeout(() => {
+                const newCardElement = createCardElement(newCard);
+                newCardElement.style.opacity = '0';
+                elements.playerDeck.appendChild(newCardElement);
+                
+                // Animate the card appearing
+                setTimeout(() => {
+                    newCardElement.style.transition = 'opacity 0.5s';
+                    newCardElement.style.opacity = '1';
+                }, 50);
+            }, 300);
+        }
 
         // Check if game is over
         if (ai.health <= 0 || player.health <= 0) {
@@ -1352,11 +1972,8 @@ function playCard(cardIndex) {
             return;
         }
 
-        // If deck is empty, draw new cards
-        if (player.deck.length === 0) {
-            player.deck = [...gameState.selectedCards];
-            addToLog(`${player.name} draws a new hand!`);
-        }
+        // Decrement Matrix Glitch turns if active
+       
 
         // Check for extra turns from special move
         if (player.extraTurns && player.extraTurns > 0) {
@@ -1373,17 +1990,43 @@ function playCard(cardIndex) {
                 if (!gameState.gameOver) {
                     makeAIMove();
                 }
-            }, 1500);
+            }, 1000);
         }
     }, 300);
 }
 
-        // Use Special Move
+// Use Special Move
         function useSpecialMove() {
             if (gameState.gameOver || gameState.currentTurn !== "player" || gameState.player.specialMoveUsed) return;
 
             const player = gameState.player;
             const ai = gameState.ai;
+
+           if (player.specialMove.name.includes("Founder Dominance")) {
+    playDominanceSound();
+} else if (player.specialMove.name.includes("Cat")) {
+    playCatSound();
+} else if (player.specialMove.name.includes("Batman")) {
+    playBatmanSound();
+} else if (player.specialMove.name.includes("Clown")) {
+    playClownSound();
+} else if (player.specialMove.name.includes("Love")) {
+    playLoveSound();
+} else if (player.specialMove.name.includes("Egg")) {
+    playEggySound();
+} else if (player.specialMove.name.includes("Matrix")) {
+    playMatrixSound();
+} else if (player.specialMove.name.includes("Dictator")) {
+    playDictatorSound();
+} else if (player.specialMove.name.includes("Proofer") ||
+            player.specialMove.name.includes("Artiste") ||
+            player.specialMove.name.includes("Helper")) {
+    playHealerSound();
+} else if (player.specialMove.name.includes("Simp")) {
+    playSimpSound();
+} else {
+    playSpecialSound();
+}
 
             // Mark special move as used
             player.specialMoveUsed = true;
@@ -1395,6 +2038,13 @@ function playCard(cardIndex) {
             const message = player.specialMove.effect(player, ai);
             addToLog(message);
             
+            if (player.specialMove.name === "Matrix Glitch") {
+        // Add visual effect to AI's cards
+        const aiCards = elements.aiDeck.querySelectorAll('.card');
+        aiCards.forEach(card => {
+            card.classList.add('glitch-effect');
+        });
+    }
             // Check if game is over
             if (ai.health <= 0 || player.health <= 0) {
                 endGame();
@@ -1405,23 +2055,29 @@ function playCard(cardIndex) {
             updateUI();
             
             // If special move doesn't grant another turn, switch to AI
-            if (!(player.specialMove.name === "Botman" || player.specialMove.name === "Queen" || player.specialMove.name === "Love Bomb")) {
-                setTimeout(() => {
-                    gameState.currentTurn = "ai";
-                    updateUI();
-                    
-                    // AI moves after delay
-                    setTimeout(() => {
-                        if (!gameState.gameOver) {
-                            makeAIMove();
-                        }
-                    }, 1000);
-                }, 500);
+            if (!(player.specialMove.name === "Botman" || 
+      player.specialMove.name === "Queen" || 
+      player.specialMove.name === "Love Bomb" ||
+      player.specialMove.name === "Matrix Glitch")) {
+    setTimeout(() => {
+        gameState.currentTurn = "ai";
+        updateUI();
+        
+        // AI moves after delay
+        setTimeout(() => {
+            if (!gameState.gameOver) {
+                makeAIMove();
             }
+        }, 1000);
+    }, 500);
+}
         }
 
         // AI Move
-      function makeAIMove() {
+     function makeAIMove() {
+        while (elements.aiDeck.children.length > 5) {
+    elements.aiDeck.removeChild(elements.aiDeck.lastChild);
+}
     if (gameState.gameOver || gameState.currentTurn !== "ai") {
         // Ensure panels are in correct state
         elements.gameContainer.style.display = 'flex';
@@ -1432,7 +2088,7 @@ function playCard(cardIndex) {
     const ai = gameState.ai;
     const player = gameState.player;
 
-    // 1. Special move check (unchanged)
+    // 1. Special move check
     if (!ai.specialMoveUsed) {
         const shouldUseSpecial = 
             (ai.specialMove.name === "Botman" || 
@@ -1447,19 +2103,15 @@ function playCard(cardIndex) {
         }
     }
 
-    // 2. Improved card selection - Shield won't be used first
+    // 2. Improved card selection
     let cardIndex = 0;
     let selectedCard;
     
     // Get all card types
-    const attacks = ai.deck.filter(card => card.type === "attack" || card.name === "Egg");
+    const attacks = ai.deck.filter(card => card.type === "attack");
+    const attack = ai.deck.filter(card=>card.name === "Egg");  
     const heals = ai.deck.filter(card => card.type === "heal");
     const shield = ai.deck.find(card => card.name === "Shield");
-
-    // Calculate player's attack threat
-    const playerThreat = gameState.player.deck.reduce((sum, card) => {
-        return sum + (card.type === "attack" ? card.power : 0);
-    }, 0);
 
     // Decision logic
     if (ai.health <= 30) {
@@ -1472,7 +2124,7 @@ function playCard(cardIndex) {
             selectedCard = attacks.reduce((a, b) => a.power > b.power ? a : b);
         }
         // Priority 3: Shield only if high threat
-        else if (shield && playerThreat >= 30) {
+        else if (shield) {
             selectedCard = shield;
         }
     } 
@@ -1481,8 +2133,8 @@ function playCard(cardIndex) {
         if (attacks.length > 0) {
             selectedCard = attacks.reduce((a, b) => a.power > b.power ? a : b);
         }
-        // Priority 2: Shield only if very high threat
-        else if (shield && playerThreat >= 40) {
+        // Priority 2: Shield
+        else if (shield) {
             selectedCard = shield;
         }
     }
@@ -1508,6 +2160,19 @@ function playCard(cardIndex) {
     // 3. Execute the move
     const cardElement = elements.aiDeck.children[cardIndex];
     
+    // Play sound based on card type
+    if (selectedCard.name === "Crush") {
+        playCrushSound();
+    } else if (selectedCard.name === "Egg") {
+        playEggSound();
+    } else if (selectedCard.type === "attack") {
+        playAttackSound();
+    } else if (selectedCard.type === "heal") {
+        playHealSound();
+    } else if (selectedCard.name === "Shield") {
+        playShieldSound();
+    }
+
     // Reveal card
     cardElement.innerHTML = `
         <div class="card-name">${selectedCard.name}</div>
@@ -1518,12 +2183,14 @@ function playCard(cardIndex) {
 
     // Apply effects after animation
     setTimeout(() => {
-        // Ensure panels stay hidden
-        elements.characterSelect.style.display = 'none';
-        elements.gameContainer.style.display = 'flex';
+        // Clear animation class
+        cardElement.classList.remove('card-play-anim');
 
         if (selectedCard.type === "attack" || selectedCard.name === "Egg") {
             let damage = selectedCard.power;
+            
+            // Apply Matrix Glitch effect if active
+           
             
             if (player.shieldActive) {
                 damage = Math.max(1, Math.floor(damage / 2));
@@ -1534,11 +2201,23 @@ function playCard(cardIndex) {
             player.health -= damage;
             if (player.health < 0) player.health = 0;
             addToLog(`${ai.name} attacks with ${selectedCard.name} for ${damage} damage!`);
+            
+            // Update player health display immediately
+            elements.playerHealthBar.style.width = `${player.health}%`;
+            elements.playerHealthText.textContent = `${player.health}/100`;
         } 
         else if (selectedCard.type === "heal") {
-            ai.health += selectedCard.power;
+            let healAmount = selectedCard.power;
+            
+            // Apply Matrix Glitch effect if active
+            
+            ai.health += healAmount;
             if (ai.health > 100) ai.health = 100;
-            addToLog(`${ai.name} heals for ${selectedCard.power} HP!`);
+            addToLog(`${ai.name} heals for ${healAmount} HP!`);
+            
+            // Update AI health display immediately
+            elements.aiHealthBar.style.width = `${ai.health}%`;
+            elements.aiHealthText.textContent = `${ai.health}/100`;
         }
         else if (selectedCard.name === "Shield") {
             ai.shieldActive = true;
@@ -1548,17 +2227,38 @@ function playCard(cardIndex) {
         // Remove used card
         ai.deck.splice(cardIndex, 1);
 
+        // Draw new card if we have less than 5
+       if (ai.deck.length < 5) {
+    const newCard = getRandomCard();
+    ai.deck.push(newCard);
+    
+    // Only add to display if we're still under 5 cards
+    if (elements.aiDeck.children.length < 5) {
+        // Add the new card to AI deck (face down)
+        setTimeout(() => {
+            const newCardElement = document.createElement('div');
+            newCardElement.className = 'card ai-card';
+            newCardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
+            newCardElement.style.opacity = '0';
+            elements.aiDeck.appendChild(newCardElement);
+            
+            // Animate the card appearing
+            setTimeout(() => {
+                newCardElement.style.transition = 'opacity 0.5s';
+                newCardElement.style.opacity = '1';
+            }, 50);
+        }, 300);
+    }
+}
+
         // Check game over
         if (player.health <= 0 || ai.health <= 0) {
             endGame();
             return;
         }
 
-        // Replenish deck if empty
-        if (ai.deck.length === 0) {
-            ai.deck = generateRandomDeck();
-            addToLog(`${ai.name} draws a new hand!`);
-        }
+        // Decrement Matrix Glitch turns if active
+       
 
         // Handle extra turns
         if (ai.extraTurns > 0) {
@@ -1566,16 +2266,18 @@ function playCard(cardIndex) {
             addToLog(`${ai.name} gets an extra turn!`);
             setTimeout(() => makeAIMove(), 1000);
         } else {
+            // Switch back to player
             gameState.currentTurn = "player";
+            updateUI();
         }
-        
-        updateUI();
     }, 300);
 }
         // AI Special Move
         function useAISpecialMove() {
             const ai = gameState.ai;
             const player = gameState.player;
+
+            playSpecialSound();
 
             // Mark special move as used
             ai.specialMoveUsed = true;
@@ -1644,10 +2346,12 @@ function playCard(cardIndex) {
                 winnerMessage = `${ai.name} WINS!`;
                 addToLog(`${ai.name} wins the battle!`);
                 effect = createEffect('defeat');
+                playDefeatSound();
             } else {
                 winnerMessage = `${player.name} WINS!`;
                 addToLog(`${player.name} wins the battle!`);
                 effect = createEffect('victory');
+                playVictorySound();
             }
 
             // Show effect and notification
@@ -1699,7 +2403,7 @@ function playCard(cardIndex) {
     gameState.ai.specialMoveUsed = false;
     gameState.player.extraTurns = 0;
     gameState.ai.extraTurns = 0;
-    
+    gameState.player.nextAttackDoubled = false;
     // Reset decks to original state
     gameState.player.deck = [...gameState.selectedCards];
     gameState.ai.deck = generateRandomDeck();
@@ -1718,6 +2422,19 @@ function playCard(cardIndex) {
 
         // New Game
         function newGame() {
+             elements.mainMenu.style.display = 'flex';
+    elements.gameContainer.style.display = 'none';
+    elements.characterSelect.style.display = 'none';
+             // Stop background music
+    document.getElementById('bg-music').pause();
+    document.getElementById('bg-music').currentTime = 0;
+    
+    // Remove play button if it exists
+    const playButton = document.getElementById('music-play-btn');
+    if (playButton) playButton.remove();
+
+     // Clear battle log - ADD THIS LINE
+    elements.battleLog.innerHTML = '<div class="log-entry">System initialized. Battle ready.</div>';
             // Hide game UI
             elements.gameContainer.style.display = 'none';
             
@@ -1739,9 +2456,30 @@ function playCard(cardIndex) {
         elements.newGameBtn.addEventListener('click', newGame);
         elements.restartBtn.addEventListener('click', restartMatch);
         elements.specialMoveBtn.addEventListener('click', useSpecialMove);
+        // Main Menu Event Listeners
+elements.normalModeBtn.addEventListener('click', () => {
+    elements.mainMenu.style.display = 'none';
+    elements.characterSelect.style.display = 'flex';
+});
 
-        // Initialize Game
-        initCharacterSelection();
+elements.multiplayerBtn.addEventListener('click', () => {
+    // Placeholder for multiplayer functionality
+    showNotification("Multiplayer coming soon!", 3000);
+});
+
+elements.quitBtn.addEventListener('click', () => {
+    if (confirm("Are you sure you want to quit?")) {
+        window.close(); // Note: This only works if the window was opened by script
+        // Fallback for browsers that don't support window.close()
+        window.location.href = "about:blank";
+    }
+});
+
+        // Initialize Game - Hide all screens except main menu
+elements.mainMenu.style.display = 'flex';
+elements.characterSelect.style.display = 'none';
+elements.gameContainer.style.display = 'none';
+initCharacterSelection();
     </script>
 </body>
 </html>

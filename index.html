@@ -1466,19 +1466,22 @@
 });
 
 
-    socket.on('playerJoined', (players) => {
-        gameState.isMultiplayer = true;
-        gameState.roomId = roomId;
-        gameState.opponent = players.find(p => p.socketId !== socket.id);
+    socket.on('playerJoined', ({ players, roomId }) => {
+  console.log("🎯 playerJoined:", players, roomId);
 
-        addToLog(`Opponent joined: ${gameState.opponent.name}`);
-        
-        // Mark player as ready
-        socket.emit('playerReady', {
-            roomId: gameState.roomId,
-            deck: gameState.selectedCards
-        });
-    });
+  gameState.opponent = players.find(p => p.socketId !== socket.id);
+  gameState.isMultiplayer = true;
+  gameState.roomId = roomId;
+
+  addToLog(`Opponent joined: ${gameState.opponent.name}`);
+
+  // Mark yourself ready
+  socket.emit('playerReady', {
+    roomId,
+    deck: gameState.selectedCards
+  });
+});
+
 
     socket.on('gameStarted', ({ players, currentTurn }) => {
     elements.multiplayerMenu.style.display = 'none';

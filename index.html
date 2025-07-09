@@ -1457,16 +1457,20 @@
         console.log('Connected to server with ID:', socket.id);
     });
 
-    socket.on('roomCreated', (roomId) => {
-        elements.waitingArea.style.display = 'block';
-        elements.roomCodeDisplay.textContent = roomId;
-        gameState.roomId = roomId;
-        addToLog(`Room created. Code: ${roomId}. Waiting for opponent...`);
-    });
+   socket.on('roomCreated', ({ roomId }) => {
+    console.log("✅ Room created:", roomId);
+    elements.waitingArea.style.display = 'block';
+    elements.roomCodeDisplay.textContent = roomId;
+    gameState.roomId = roomId;
+    addToLog(`Room created. Code: ${roomId}. Waiting for opponent...`);
+});
+
 
     socket.on('playerJoined', (players) => {
         gameState.isMultiplayer = true;
+        gameState.roomId = roomId;
         gameState.opponent = players.find(p => p.socketId !== socket.id);
+
         addToLog(`Opponent joined: ${gameState.opponent.name}`);
         
         // Mark player as ready

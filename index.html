@@ -965,6 +965,33 @@
         font-size: 0.9rem;
     }
 } 
+.multiplayer-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: var(--darker-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#join-room-input {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+#join-room-input input {
+  padding: 10px;
+  border: 2px solid var(--neon-blue);
+  background: var(--dark-bg);
+  color: white;
+  border-radius: 5px;
+}
     </style>
 </head>
 <!-- Add this in the head section after the styles -->
@@ -993,6 +1020,10 @@
   Play Music
 </audio>
 <body>
+     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+  const socket = io('https://card-battle-u4uz.onrender.com/'); 
+</script>
     <!-- Main Menu Screen -->
 <div class="main-menu" id="main-menu">
     <h1>SUCCINCT CARD BATTLE</h1>
@@ -1016,6 +1047,22 @@
             <button class="start-game-btn" id="start-game-btn">BEGIN BATTLE</button>
         </div>
     </div>
+    <!-- Add after character-select div -->
+<div class="multiplayer-menu" id="multiplayer-menu" style="display:none;">
+  <h1>MULTIPLAYER</h1>
+  <div class="menu-options">
+    <button id="create-room-btn">CREATE ROOM</button>
+    <button id="join-room-btn">JOIN ROOM</button>
+    <div id="join-room-input" style="display:none;">
+      <input type="text" id="room-code" placeholder="Enter Room Code">
+      <button id="submit-room-code">JOIN</button>
+    </div>
+    <div id="waiting-area" style="display:none;">
+      <p>Room Code: <span id="room-code-display"></span></p>
+      <p>Waiting for player...</p>
+    </div>
+  </div>
+</div>
 
     <!-- Main Game UI -->
     <div class="game-container" id="game-container" style="display: none;">
@@ -1249,7 +1296,7 @@
     avatar: "./Avatars/Serkan.jpg",
     specialMove: {
         name: "Matrix Glitch",
-        description: "Your next attack deals double damage",
+        description: "His next attack deals double damage",
         effect: (user, target) => {
             // Set flag for next attack
             user.nextAttackDoubled = true;
@@ -1281,7 +1328,7 @@
         avatar: "./Avatars/Tug.jpg",
         specialMove: {
             name: "Proofer Regen",
-            description: "+40 HP to himself",
+            description: "Heals 40 HP ",
             effect: (user, target) => {
                 user.health += 40;
                 if (user.health > 100) user.health = 100;
@@ -1309,7 +1356,7 @@
     avatar: "./Avatars/Rob.jpg",
     specialMove: {
         name: "Mr Simp",
-        description: "Deals 30 damage to himself against female characters, or 10 damage to male opponents",
+        description: "Deals 30 damage to himself against female characters, and 10 damage to male opponents",
         effect: (user, target) => {
             const femaleCharacters = ["Uma", "Cocowaves", "Chixxey", "Pix"];
             if (femaleCharacters.includes(target.name)) {
@@ -1339,6 +1386,7 @@
     { name: "Egg", type: "attack", power: 28, icon: "🥚" } 
 ];
 
+            let roomId = null;
         // Game State
         const gameState = {
             player: null,
@@ -1347,7 +1395,9 @@
             gameOver: false,
             selectedCards: [],
             specialMoveUsed: false,
-            nextAttackDoubled:false
+            nextAttackDoubled:false,
+            isMultiplayer: false,
+            opponent: null 
         };
 
         // DOM Elements
@@ -1376,9 +1426,94 @@
             mainMenu: document.getElementById('main-menu'),
             normalModeBtn: document.getElementById('normal-mode-btn'),
             multiplayerBtn: document.getElementById('multiplayer-btn'),
-            quitBtn: document.getElementById('quit-btn')
+            quitBtn: document.getElementById('quit-btn'),
+            multiplayerMenu: document.getElementById('multiplayer-menu'),
+            createRoomBtn: document.getElementById('create-room-btn'),
+            joinRoomBtn: document.getElementById('join-room-btn'),
+            joinRoomInput: document.getElementById('join-room-input'),
+            roomCodeInput: document.getElementById('room-code'),
+            submitRoomCode: document.getElementById('submit-room-code'),
+             waitingArea: document.getElementById('waiting-area'),
+             roomCodeDisplay: document.getElementById('room-code-display')
         };
+        
 
+        // Multiplayer event listeners
+elements.multiplayerBtn.addEventListener('click', () => {
+  elements.mainMenu.style.display = 'none';
+  elements.multiplayerMenu.style.display = 'flex';
+});
+
+elements.createRoomBtn.addEventListener('click', () => {
+  socket.emit('createRoom', {
+    name: gameState.player.name,
+    avatar: gameState.player.avatar
+  });
+});
+
+socket.on('roomCreated', (roomId) => {
+  elements.waitingArea.style.display = 'block';
+  elements.roomCodeDisplay.textContent = roomId;
+});
+
+socket.on('playerJoined', (players) => {
+  gameState.isMultiplayer = true;
+  gameState.opponent = players.find(p => p.socketId !== socket.id);
+  startMultiplayerGame();
+});
+
+elements.joinRoomBtn.addEventListener('click', () => {
+  elements.joinRoomInput.style.display = 'flex';
+});
+
+elements.submitRoomCode.addEventListener('click', () => {
+  const code = elements.roomCodeInput.value.trim();
+  if (code) {
+    socket.emit('joinRoom', {
+      roomId: code,
+      playerData: {
+        name: "Player 2", // Replace with actual player name
+        avatar: "./Avatars/default.webp"
+      }
+    });
+  }
+});
+
+// Handle opponent's moves
+socket.on('cardPlayed', (cardIndex) => {
+  // Process opponent's card play
+  const card = gameState.opponent.deck[cardIndex];
+  applyCardEffects(card, gameState.opponent, gameState.player);
+  updateUI();
+});
+
+function startMultiplayerGame(players) {
+  // Hide menus, show game
+  elements.multiplayerMenu.style.display = 'none';
+  elements.gameContainer.style.display = 'flex';
+
+   
+  // Update UI for multiplayer
+  elements.aiName.textContent = gameState.opponent.name;
+  elements.aiAvatar.src = gameState.opponent.avatar;
+  
+  // Initialize with multiplayer rules
+  gameState.currentTurn = "player"; // Host goes first
+  // Set up players
+  gameState.player = {
+    ...players.find(p => p.socketId === socket.id),
+    health: 100,
+    deck: [...gameState.selectedCards]
+  };
+
+  gameState.opponent = {
+    ...players.find(p => p.socketId !== socket.id),
+    health: 100,
+    deck: generateRandomDeck()
+  };
+
+  initBattle();
+}
 
         // Add this near your other sound functions
 function playBackgroundMusic() {
@@ -1855,6 +1990,13 @@ function createCardElement(card) {
         // Play Card
 function playCard(cardIndex) {
     if (gameState.gameOver || gameState.currentTurn !== "player") return;
+
+     if (gameState.isMultiplayer) {
+    socket.emit('playCard', {
+      roomId: roomId,
+      cardIndex: cardIndex
+    });
+  }
 
     const player = gameState.player;
     const ai = gameState.ai;
@@ -2463,8 +2605,8 @@ elements.normalModeBtn.addEventListener('click', () => {
 });
 
 elements.multiplayerBtn.addEventListener('click', () => {
-    // Placeholder for multiplayer functionality
-    showNotification("Multiplayer coming soon!", 3000);
+  elements.mainMenu.style.display = 'none';
+  elements.multiplayerMenu.style.display = 'flex';
 });
 
 elements.quitBtn.addEventListener('click', () => {

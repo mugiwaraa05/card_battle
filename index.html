@@ -992,6 +992,16 @@
   color: white;
   border-radius: 5px;
 }
+.deck-builder-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.multiplayer-btn {
+    background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+}
     </style>
 </head>
 <!-- Add this in the head section after the styles -->
@@ -1022,14 +1032,13 @@
 <body>
      <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
-  const socket = io('https://card-battle-u4uz.onrender.com/'); 
+  
 </script>
     <!-- Main Menu Screen -->
 <div class="main-menu" id="main-menu">
     <h1>SUCCINCT CARD BATTLE</h1>
     <div class="menu-options">
         <button class="menu-btn" id="normal-mode-btn">NORMAL MODE</button>
-        <button class="menu-btn" id="multiplayer-btn">MULTIPLAYER</button>
         <button class="menu-btn" id="quit-btn">QUIT</button>
     </div>
 </div>
@@ -1044,7 +1053,8 @@
             <div class="card-options" id="card-options">
                 <!-- Card options will be added here by JS -->
             </div>
-            <button class="start-game-btn" id="start-game-btn">BEGIN BATTLE</button>
+        <button class="start-game-btn" id="start-game-btn">PLAY VS AI</button>
+        <button class="start-game-btn multiplayer-btn" id="multiplayer-btn">PLAY MULTIPLAYER
         </div>
     </div>
     <!-- Add after character-select div -->
@@ -1436,84 +1446,242 @@
              waitingArea: document.getElementById('waiting-area'),
              roomCodeDisplay: document.getElementById('room-code-display')
         };
+
         
-
-        // Multiplayer event listeners
-elements.multiplayerBtn.addEventListener('click', () => {
-  elements.mainMenu.style.display = 'none';
-  elements.multiplayerMenu.style.display = 'flex';
-});
-
-elements.createRoomBtn.addEventListener('click', () => {
-  socket.emit('createRoom', {
-    name: gameState.player.name,
-    avatar: gameState.player.avatar
-  });
-});
-
-socket.on('roomCreated', (roomId) => {
-  elements.waitingArea.style.display = 'block';
-  elements.roomCodeDisplay.textContent = roomId;
-});
-
-socket.on('playerJoined', (players) => {
-  gameState.isMultiplayer = true;
-  gameState.opponent = players.find(p => p.socketId !== socket.id);
-  startMultiplayerGame();
-});
-
-elements.joinRoomBtn.addEventListener('click', () => {
-  elements.joinRoomInput.style.display = 'flex';
-});
-
-elements.submitRoomCode.addEventListener('click', () => {
-  const code = elements.roomCodeInput.value.trim();
-  if (code) {
-    socket.emit('joinRoom', {
-      roomId: code,
-      playerData: {
-        name: "Player 2", // Replace with actual player name
-        avatar: "./Avatars/default.webp"
-      }
+    // Socket.io connection
+    const socket = io('https://card-battle-u4uz.onrender.com/');
+    
+    // Socket event handlers
+    socket.on('connect', () => {
+        gameState.socketId = socket.id;
+        console.log('Connected to server with ID:', socket.id);
     });
-  }
+
+    socket.on('roomCreated', (roomId) => {
+        elements.waitingArea.style.display = 'block';
+        elements.roomCodeDisplay.textContent = roomId;
+        gameState.roomId = roomId;
+        addToLog(`Room created. Code: ${roomId}. Waiting for opponent...`);
+    });
+
+    socket.on('playerJoined', (players) => {
+        gameState.isMultiplayer = true;
+        gameState.opponent = players.find(p => p.socketId !== socket.id);
+        addToLog(`Opponent joined: ${gameState.opponent.name}`);
+        
+        // Mark player as ready
+        socket.emit('playerReady', {
+            roomId: gameState.roomId,
+            deck: gameState.selectedCards
+        });
+    });
+
+    socket.on('gameStarted', ({ players, currentTurn }) => {
+    elements.multiplayerMenu.style.display = 'none';
+    elements.gameContainer.style.display = 'flex';
+    
+    const localPlayer = players.find(p => p.socketId === socket.id);
+    const opponent = players.find(p => p.socketId !== socket.id);
+    
+    gameState.player = {
+        ...localPlayer,
+        health: 100,
+        specialMoveUsed: false,
+        extraTurns: 0,
+        shieldActive: false,
+        nextAttackDoubled: false
+    };
+    
+    gameState.opponent = {
+        ...opponent,
+        health: 100,
+        specialMoveUsed: false,
+        extraTurns: 0,
+        shieldActive: false,
+        nextAttackDoubled: false
+    };
+    
+    gameState.currentTurn = currentTurn === socket.id ? "player" : "opponent";
+    
+    // Update UI labels for multiplayer
+    elements.aiName.textContent = gameState.opponent.name;
+    elements.aiAvatar.src = gameState.opponent.avatar;
+    
+    // Initialize battle
+    updateUI();
+    animateCardsDrop();
+    
+    addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.opponent.name}`);
+    if (gameState.currentTurn === "player") {
+        addToLog("You go first!");
+    } else {
+        addToLog(`${gameState.opponent.name} goes first!`);
+    }
 });
 
-// Handle opponent's moves
-socket.on('cardPlayed', (cardIndex) => {
-  // Process opponent's card play
-  const card = gameState.opponent.deck[cardIndex];
-  applyCardEffects(card, gameState.opponent, gameState.player);
-  updateUI();
+    socket.on('cardPlayed', ({ playerId, cardIndex }) => {
+        if (playerId === socket.id) return;
+        
+        const opponent = gameState.opponent;
+        const card = opponent.deck[cardIndex];
+        
+        applyCardEffects(card, opponent, gameState.player);
+        updateUI();
+        
+        gameState.currentTurn = "player";
+        elements.turnIndicator.textContent = "YOUR TURN";
+    });
+
+    socket.on('gameStateUpdated', (updatedState) => {
+        const localPlayer = updatedState.players.find(p => p.socketId === socket.id);
+        const opponent = updatedState.players.find(p => p.socketId !== socket.id);
+        
+        gameState.player = {
+            ...gameState.player,
+            health: localPlayer.health,
+            specialMoveUsed: localPlayer.specialMoveUsed
+        };
+        
+        gameState.opponent = {
+            ...gameState.opponent,
+            health: opponent.health,
+            specialMoveUsed: opponent.specialMoveUsed
+        };
+        
+        gameState.currentTurn = updatedState.currentTurn === socket.id ? "player" : "opponent";
+        updateUI();
+    });
+
+    socket.on('gameOver', ({ winner }) => {
+        gameState.gameOver = true;
+        
+        if (winner === socket.id) {
+            showNotification("YOU WIN!");
+            playVictorySound();
+            addToLog("You won the battle!");
+        } else {
+            showNotification("YOU LOSE!");
+            playDefeatSound();
+            addToLog("You lost the battle!");
+        }
+        
+        document.querySelectorAll('.card').forEach(card => {
+            card.style.pointerEvents = 'none';
+        });
+        elements.specialMoveBtn.disabled = true;
+    });
+
+    socket.on('opponentDisconnected', () => {
+        showNotification("Opponent disconnected!");
+        addToLog("Opponent disconnected. Returning to main menu.");
+        
+        setTimeout(() => {
+            newGame();
+        }, 3000);
+    });
+
+    socket.on('error', (message) => {
+        showNotification(`Error: ${message}`);
+    });
+
+    socket.on('specialMoveUsed', ({ playerId }) => {
+    if (playerId === socket.id) return;
+    
+    const opponent = gameState.opponent;
+    const player = gameState.player;
+    
+    const message = opponent.specialMove.effect(opponent, player);
+    addToLog(message);
+    
+    updateUI();
+    
+    // Check for game over
+    if (player.health <= 0 || opponent.health <= 0) {
+        endGame();
+    }
+});
+        
+// Multiplayer event listeners
+    elements.multiplayerBtn.addEventListener('click', () => {
+        elements.mainMenu.style.display = 'none';
+        elements.multiplayerMenu.style.display = 'flex';
+    });
+
+    elements.createRoomBtn.addEventListener('click', () => {
+    if (gameState.selectedCards.length === 5) {
+        socket.emit('createRoom', {
+            name: gameState.player.name,
+            avatar: gameState.player.avatar,
+            deck: gameState.selectedCards,
+            specialMove: gameState.player.specialMove
+        });
+    } else {
+        alert("Please build your deck first!");
+    }
 });
 
-function startMultiplayerGame(players) {
-  // Hide menus, show game
-  elements.multiplayerMenu.style.display = 'none';
-  elements.gameContainer.style.display = 'flex';
+    elements.joinRoomBtn.addEventListener('click', () => {
+        elements.joinRoomInput.style.display = 'flex';
+    });
 
-   
-  // Update UI for multiplayer
-  elements.aiName.textContent = gameState.opponent.name;
-  elements.aiAvatar.src = gameState.opponent.avatar;
-  
-  // Initialize with multiplayer rules
-  gameState.currentTurn = "player"; // Host goes first
-  // Set up players
-  gameState.player = {
-    ...players.find(p => p.socketId === socket.id),
-    health: 100,
-    deck: [...gameState.selectedCards]
-  };
+    elements.submitRoomCode.addEventListener('click', () => {
+        const code = elements.roomCodeInput.value.trim().toUpperCase();
+        if (code) {
+            if (!gameState.player) {
+                alert("Please select your character and deck first");
+                return;
+            }
+            
+            socket.emit('joinRoom', {
+                roomId: code,
+                playerData: {
+                    name: gameState.player.name,
+                    avatar: gameState.player.avatar,
+                    deck: gameState.selectedCards,
+                    specialMove: gameState.player.specialMove
+                }
+            });
+        }
+    });
 
-  gameState.opponent = {
-    ...players.find(p => p.socketId !== socket.id),
-    health: 100,
-    deck: generateRandomDeck()
-  };
+    // Helper function to apply card effects
+    function applyCardEffects(card, user, target) {
+        if (card.name === "Crush") playCrushSound();
+        else if (card.name === "Egg") playEggSound();
+        else if (card.type === "attack") playAttackSound();
+        else if (card.type === "heal") playHealSound();
+        else if (card.name === "Shield") playShieldSound();
 
-  initBattle();
-}
+        if (card.type === "attack" || card.name === "Egg") {
+            let damage = card.power;
+            
+            if (user.nextAttackDoubled) {
+                damage *= 2;
+                addToLog(`Matrix Glitch doubles ${card.name}'s power to ${damage}!`);
+                user.nextAttackDoubled = false;
+            }
+            
+            if (target.shieldActive) {
+                damage = Math.max(1, Math.floor(damage / 2));
+                addToLog(`${target.name}'s Shield reduces damage to ${damage}!`);
+                target.shieldActive = false;
+            }
+            
+            target.health -= damage;
+            if (target.health < 0) target.health = 0;
+            addToLog(`${user.name} uses ${card.name} for ${damage} damage!`);
+        } 
+        else if (card.type === "heal") {
+            const healAmount = card.power;
+            user.health += healAmount;
+            if (user.health > 100) user.health = 100;
+            addToLog(`${user.name} heals for ${healAmount} HP!`);
+        }
+        else if (card.name === "Shield") {
+            user.shieldActive = true;
+            addToLog(`${user.name} activates Shield! Next attack will be halved!`);
+        }
+    }
 
         // Add this near your other sound functions
 function playBackgroundMusic() {
@@ -1727,6 +1895,8 @@ function playSpecialSound() {
                 `;
                 cardElement.addEventListener('click', () => toggleCardSelection(card, cardElement));
                 elements.cardOptions.appendChild(cardElement);
+                // Inside your deck-builder code
+
             });
         }
 
@@ -1992,11 +2162,17 @@ function playCard(cardIndex) {
     if (gameState.gameOver || gameState.currentTurn !== "player") return;
 
      if (gameState.isMultiplayer) {
-    socket.emit('playCard', {
-      roomId: roomId,
-      cardIndex: cardIndex
-    });
-  }
+            socket.emit('playCard', {
+                roomId: gameState.roomId,
+                cardIndex: cardIndex
+            });
+            
+            const card = gameState.player.deck[cardIndex];
+            applyCardEffects(card, gameState.player, gameState.opponent);
+            
+            gameState.currentTurn = "opponent";
+            updateUI();
+        } else {
 
     const player = gameState.player;
     const ai = gameState.ai;
@@ -2135,85 +2311,100 @@ function playCard(cardIndex) {
             }, 1000);
         }
     }, 300);
-}
+}}
 
-// Use Special Move
-        function useSpecialMove() {
-            if (gameState.gameOver || gameState.currentTurn !== "player" || gameState.player.specialMoveUsed) return;
+function useSpecialMove() {
+    if (gameState.gameOver || gameState.currentTurn !== "player" || gameState.player.specialMoveUsed) return;
 
-            const player = gameState.player;
-            const ai = gameState.ai;
+    const player = gameState.player;
+    const target = gameState.isMultiplayer ? gameState.opponent : gameState.ai;
 
-           if (player.specialMove.name.includes("Founder Dominance")) {
-    playDominanceSound();
-} else if (player.specialMove.name.includes("Cat")) {
-    playCatSound();
-} else if (player.specialMove.name.includes("Batman")) {
-    playBatmanSound();
-} else if (player.specialMove.name.includes("Clown")) {
-    playClownSound();
-} else if (player.specialMove.name.includes("Love")) {
-    playLoveSound();
-} else if (player.specialMove.name.includes("Egg")) {
-    playEggySound();
-} else if (player.specialMove.name.includes("Matrix")) {
-    playMatrixSound();
-} else if (player.specialMove.name.includes("Dictator")) {
-    playDictatorSound();
-} else if (player.specialMove.name.includes("Proofer") ||
-            player.specialMove.name.includes("Artiste") ||
-            player.specialMove.name.includes("Helper")) {
-    playHealerSound();
-} else if (player.specialMove.name.includes("Simp")) {
-    playSimpSound();
-} else {
-    playSpecialSound();
-}
+    // Play appropriate sound effect based on move
+    if (player.specialMove.name.includes("Founder Dominance")) {
+        playDominanceSound();
+    } else if (player.specialMove.name.includes("Cat")) {
+        playCatSound();
+    } else if (player.specialMove.name.includes("Batman")) {
+        playBatmanSound();
+    } else if (player.specialMove.name.includes("Clown")) {
+        playClownSound();
+    } else if (player.specialMove.name.includes("Love")) {
+        playLoveSound();
+    } else if (player.specialMove.name.includes("Egg")) {
+        playEggySound();
+    } else if (player.specialMove.name.includes("Matrix")) {
+        playMatrixSound();
+    } else if (player.specialMove.name.includes("Dictator")) {
+        playDictatorSound();
+    } else if (player.specialMove.name.includes("Proofer") ||
+               player.specialMove.name.includes("Artiste") ||
+               player.specialMove.name.includes("Helper")) {
+        playHealerSound();
+    } else if (player.specialMove.name.includes("Simp")) {
+        playSimpSound();
+    } else {
+        playSpecialSound();
+    }
 
-            // Mark special move as used
-            player.specialMoveUsed = true;
-            
-            // Show notification
-            showNotification(`${player.specialMove.name} USED!`, 1500);
-            
-            // Apply special move effect
-            const message = player.specialMove.effect(player, ai);
-            addToLog(message);
-            
-            if (player.specialMove.name === "Matrix Glitch") {
-        // Add visual effect to AI's cards
-        const aiCards = elements.aiDeck.querySelectorAll('.card');
-        aiCards.forEach(card => {
-            card.classList.add('glitch-effect');
+    // Mark special move as used
+    player.specialMoveUsed = true;
+    
+    // Update UI immediately to disable button
+    updateUI();
+    
+    if (gameState.isMultiplayer) {
+        socket.emit('useSpecialMove', {
+            roomId: gameState.roomId
         });
     }
-            // Check if game is over
-            if (ai.health <= 0 || player.health <= 0) {
-                endGame();
-                return;
-            }
-            
-            // Update UI
+    
+    // Show notification
+    showNotification(`${player.specialMove.name} USED!`, 1500);
+    
+    // Apply special move effect
+    const message = player.specialMove.effect(player, target);
+    addToLog(message);
+    
+    // Update health displays
+    elements.playerHealthBar.style.width = `${player.health}%`;
+    elements.playerHealthText.textContent = `${player.health}/100`;
+    elements.aiHealthBar.style.width = `${target.health}%`;
+    elements.aiHealthText.textContent = `${target.health}/100`;
+    
+    // Check for game over
+    if (target.health <= 0 || player.health <= 0) {
+        endGame();
+        return;
+    }
+    
+    // Determine if move grants extra turn
+    const extraTurnMoves = ["Botman", "Queen", "Love Bomb", "Matrix Glitch"];
+    const grantsExtraTurn = extraTurnMoves.includes(player.specialMove.name);
+    
+    if (!grantsExtraTurn) {
+        // Standard behavior - switch turns
+        setTimeout(() => {
+            gameState.currentTurn = gameState.isMultiplayer ? "opponent" : "ai";
             updateUI();
             
-            // If special move doesn't grant another turn, switch to AI
-            if (!(player.specialMove.name === "Botman" || 
-      player.specialMove.name === "Queen" || 
-      player.specialMove.name === "Love Bomb" ||
-      player.specialMove.name === "Matrix Glitch")) {
-    setTimeout(() => {
-        gameState.currentTurn = "ai";
-        updateUI();
-        
-        // AI moves after delay
-        setTimeout(() => {
-            if (!gameState.gameOver) {
-                makeAIMove();
+            // If single-player and AI's turn, make AI move
+            if (!gameState.isMultiplayer && !gameState.gameOver) {
+                setTimeout(() => makeAIMove(), 1000);
             }
-        }, 1000);
-    }, 500);
-}
+        }, 500);
+    } else {
+        // Special moves that grant extra turns
+        if (player.specialMove.name === "Matrix Glitch") {
+            // Add visual effect to cards
+            const cards = elements.playerDeck.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.classList.add('glitch-effect');
+                setTimeout(() => card.classList.remove('glitch-effect'), 1000);
+            });
         }
+        addToLog(`${player.name} gets to keep their turn!`);
+    }
+}
 
         // AI Move
      function makeAIMove() {
@@ -2462,6 +2653,23 @@ function playCard(cardIndex) {
             const player = gameState.player;
             const ai = gameState.ai;
 
+             // Determine winner
+    let winner;
+    if (gameState.player.health <= 0 && (gameState.ai?.health <= 0 || gameState.opponent?.health <= 0)) {
+        winner = "draw";
+    } else if (gameState.player.health <= 0) {
+        winner = "opponent";
+    } else {
+        winner = "player";
+    }
+    
+    if (gameState.isMultiplayer) {
+        socket.emit('gameOver', {
+            roomId: gameState.roomId,
+            winner: winner === "player" ? socket.id : (winner === "opponent" ? gameState.opponent.socketId : null)
+        });
+    }
+
             // Force health bars to update to 0 if needed
             if (player.health <= 0) {
                 player.health = 0;
@@ -2598,24 +2806,28 @@ function playCard(cardIndex) {
         elements.newGameBtn.addEventListener('click', newGame);
         elements.restartBtn.addEventListener('click', restartMatch);
         elements.specialMoveBtn.addEventListener('click', useSpecialMove);
-        // Main Menu Event Listeners
-elements.normalModeBtn.addEventListener('click', () => {
-    elements.mainMenu.style.display = 'none';
-    elements.characterSelect.style.display = 'flex';
-});
+       // Main Menu Event Listeners
+    elements.normalModeBtn.addEventListener('click', () => {
+        elements.mainMenu.style.display = 'none';
+        elements.characterSelect.style.display = 'flex';
+    });
 
+    // Add this with your other event listeners
 elements.multiplayerBtn.addEventListener('click', () => {
-  elements.mainMenu.style.display = 'none';
-  elements.multiplayerMenu.style.display = 'flex';
-});
-
-elements.quitBtn.addEventListener('click', () => {
-    if (confirm("Are you sure you want to quit?")) {
-        window.close(); // Note: This only works if the window was opened by script
-        // Fallback for browsers that don't support window.close()
-        window.location.href = "about:blank";
+    if (gameState.selectedCards.length === 5) {
+        elements.characterSelect.style.display = 'none';
+        elements.multiplayerMenu.style.display = 'flex';
+    } else {
+        alert("Please select exactly 5 cards first!");
     }
 });
+
+    elements.quitBtn.addEventListener('click', () => {
+        if (confirm("Are you sure you want to quit?")) {
+            window.close();
+            window.location.href = "about:blank";
+        }
+    });
 
         // Initialize Game - Hide all screens except main menu
 elements.mainMenu.style.display = 'flex';

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1136,7 +1137,7 @@
                 specialMove: {
                     name: "Founder Dominance",
                     description: "Deals 40 damage to opponent",
-                    effect: (user, target) => {
+                    effect: function (user, target)  {
                         target.health -= 40;
                         if (target.health < 0) target.health = 0;
                         return `${user.name} uses Founder Dominance! Deals 40 damage to ${target.name}!`;
@@ -1149,7 +1150,7 @@
                 specialMove: {
                     name: "I am Batman",
                     description: "Deals 25 damage to opponent",
-                    effect: (user, target) => {
+                    effect: function (user, target) {
                         target.health -= 25;
                         if (target.health < 0) target.health = 0;
                         return `${user.name} uses I am Batman! Deals 25 damage to ${target.name}!`;
@@ -1162,7 +1163,7 @@
                 specialMove: {
                     name: "Cat Attack",
                     description: "Deals 20 damage to opponent",
-                    effect: (user, target) => {
+                    effect: function (user, target)  {
                         target.health -= 20;
                         if (target.health < 0) target.health = 0;
                         return `${user.name} uses Cat Attack! Deals 20 damage to ${target.name}!`;
@@ -1175,7 +1176,7 @@
                 specialMove: {
                     name: "Dictator",
                     description: "Deals 35 damage to opponent",
-                    effect: (user, target) => {
+                    effect: function (user, target)  {
                         target.health -= 35;
                         if (target.health < 0) target.health = 0;
                         return `${user.name} uses Dictator! Deals 35 damage to ${target.name}!`;
@@ -1188,7 +1189,7 @@
                 specialMove: {
                     name: "Eggscalibur",
                     description: "Deals 30 damage to opponent",
-                    effect: (user, target) => {
+                    effect: function (user, target)  {
                         target.health -= 30;
                         if (target.health < 0) target.health = 0;
                         return `${user.name} uses Eggscalibur! Deals 30 damage to ${target.name}!`;
@@ -1201,7 +1202,7 @@
                 specialMove: {
                     name: "Botman",
                     description: "Gets one additional turn",
-                    effect: (user, target) => {
+                    effect: function (user, target)  {
                         user.extraTurns = 1;
                         return `${user.name} uses Botman! Gets one additional turn!`;
                     }
@@ -1213,7 +1214,7 @@
                 specialMove: {
                     name: "Artiste",
                     description: "Heals 40 HP",
-                    effect: (user, target) => {
+                    effect: function (user, target) {
                         user.health += 40;
                         if (user.health > 100) user.health = 100;
                         return `${user.name} uses Artiste! Heals 40 HP!`;
@@ -1226,7 +1227,7 @@
                 specialMove: {
                     name: "Queen",
                     description: "Gets one additional turn",
-                    effect: (user, target) => {
+                    effect: function (user, target) {
                         user.extraTurns = 1;
                         return `${user.name} uses Queen! Gets one additional turn!`;
                     }
@@ -1238,7 +1239,7 @@
                 specialMove: {
                     name: "Labubu Rage",
                     description: "Deals 40 damage to opponent",
-                    effect: (user, target) => {
+                    effect: function (user, target)  {
                         target.health -= 40;
                         if (target.health < 0) target.health = 0;
                         return `${user.name} uses Labubu Rage! Deals 40 damage to ${target.name}!`;
@@ -1251,7 +1252,7 @@
                 specialMove: {
                     name: "Mr Helper",
                     description: "Heals 30 HP",
-                    effect: (user, target) => {
+                    effect:function (user, target) {
                         user.health += 30;
                         if (user.health > 100) user.health = 100;
                         return `${user.name} uses Mr Helper! Heals 30 HP!`;
@@ -1264,7 +1265,7 @@
                 specialMove: {
                     name: "Mr Green",
                     description: "Heals 25 HP",
-                    effect: (user, target) => {
+                    effect: function (user, target) {
                         user.health += 25;
                         if (user.health > 100) user.health = 100;
                         return `${user.name} uses Mr Green! Heals 25 HP!`;
@@ -1277,7 +1278,7 @@
                 specialMove: {
                     name: "Love Bomb",
                     description: "Deals 5 damage to opponent and gets an extra turn",
-                    effect: (user, target) => {
+                    effect: function (user, target) {
                         target.health -= 5;
                         if (target.health < 0) target.health = 0;
                         user.extraTurns = 1;
@@ -1293,7 +1294,7 @@
                 specialMove: {
                     name: "The Clown",
                     description: "Deals 35 damage to himself",
-                    effect: (user, target) => {
+                    effect: function (user, target)  {
                         user.health -= 35;
                         if (user.health < 0) user.health = 0;
                         return `${user.name} uses The Clown! Deals 35 damage to himself!`;
@@ -1307,7 +1308,7 @@
     specialMove: {
         name: "Matrix Glitch",
         description: "His next attack deals double damage",
-        effect: (user, target) => {
+        effect: function (user, target) {
             // Set flag for next attack
             user.nextAttackDoubled = true;
             return `${user.name} uses Matrix Glitch! Next attack will deal double damage!`;
@@ -1320,7 +1321,7 @@
         specialMove: {
             name: "Mr Shipper",
             description: "+20 HP to himself and -20 HP to opponent",
-            effect: (user, target) => {
+            effect: function (user, target) {
                 // Heal user
                 user.health += 20;
                 if (user.health > 100) user.health = 100;
@@ -1339,7 +1340,7 @@
         specialMove: {
             name: "Proofer Regen",
             description: "Heals 40 HP ",
-            effect: (user, target) => {
+            effect: function (user, target) {
                 user.health += 40;
                 if (user.health > 100) user.health = 100;
                 return `${user.name} uses Proofer Regen! +40 HP!`;
@@ -1352,7 +1353,7 @@
     specialMove: {
         name: "The Don",
         description: "Deals 30 damage to opponent and 10 damage to himself",
-        effect: (user, target) => {
+        effect: function (user, target) {
             target.health -= 30;
             if (target.health < 0) target.health = 0;
             user.health -= 10;
@@ -1367,7 +1368,7 @@
     specialMove: {
         name: "Mr Simp",
         description: "Deals 30 damage to himself against female characters, and 10 damage to male opponents",
-        effect: (user, target) => {
+        effect: function (user, target)  {
             const femaleCharacters = ["Uma", "Cocowaves", "Chixxey", "Pix"];
             if (femaleCharacters.includes(target.name)) {
                 user.health -= 30;
@@ -1509,7 +1510,7 @@
     shieldActive: false,
     nextAttackDoubled: false,
     specialMove: localPlayer.specialMove,
-    specialMoveUsed: localPlayer.specialMoveUsed || false,
+    specialMoveUsed: false,
     health: localPlayer.health ?? 100
   };
 
@@ -1518,7 +1519,7 @@
     extraTurns: 0,
     shieldActive: false,
     nextAttackDoubled: false,
-    specialMoveUsed: opponent.specialMoveUsed || false,
+    specialMoveUsed:  false,
     health: opponent.health ?? 100
   };
 
@@ -1577,6 +1578,37 @@
         gameState.currentTurn = updatedState.currentTurn === socket.id ? "player" : "opponent";
         updateUI();
     });
+    // Add this with your other socket handlers
+socket.on('specialMoveApplied', ({ playerId, message, playerHealth, opponentHealth, extraTurn, doubleDamage }) => {
+    if (playerId === socket.id) {
+        // We already handled the local effects
+        if (doubleDamage) {
+            gameState.player.nextAttackDoubled = true;
+        }
+        return;
+    }
+    
+    // Update health values
+    gameState.player.health = playerHealth;
+    gameState.opponent.health = opponentHealth;
+    
+    // Update special move effects
+    if (doubleDamage) {
+        gameState.opponent.nextAttackDoubled = true;
+    }
+    
+    // Add to log
+    addToLog(message);
+    
+    // Update UI
+    updateUI();
+    
+    // Switch turns if it wasn't an extra turn move
+    if (!extraTurn) {
+        gameState.currentTurn = "player";
+        elements.turnIndicator.textContent = "YOUR TURN";
+    }
+});
 
     socket.on('gameOver', ({ winner }) => {
         gameState.gameOver = true;
@@ -1597,6 +1629,31 @@
         elements.specialMoveBtn.disabled = true;
     });
 
+    // Add this with your other socket handlers
+socket.on('specialMoveApplied', ({ playerId, message, playerHealth, opponentHealth }) => {
+    if (playerId === socket.id) {
+        // This is our own move, we already handled it locally
+        return;
+    }
+
+    // Update opponent's special move status
+    gameState.opponent.specialMoveUsed = true;
+    
+    // Update health values
+    gameState.player.health = playerHealth;
+    gameState.opponent.health = opponentHealth;
+    
+    // Add to log
+    addToLog(message);
+    
+    // Update UI
+    updateUI();
+    
+    // Switch turns
+    gameState.currentTurn = "player";
+    elements.turnIndicator.textContent = "YOUR TURN";
+});
+
     socket.on('opponentDisconnected', () => {
         showNotification("Opponent disconnected!");
         addToLog("Opponent disconnected. Returning to main menu.");
@@ -1610,12 +1667,16 @@
         showNotification(`Error: ${message}`);
     });
 
-    socket.on('specialMoveUsed', ({ playerId }) => {
+   socket.on('specialMoveUsed', ({ playerId }) => {
     if (playerId === socket.id) return;
     
     const opponent = gameState.opponent;
     const player = gameState.player;
     
+    // Mark opponent's special move as used
+    opponent.specialMoveUsed = true;
+    
+    // Apply the effect
     const message = opponent.specialMove.effect(opponent, player);
     addToLog(message);
     
@@ -1639,7 +1700,11 @@
             name: gameState.player.name,
             avatar: gameState.player.avatar,
             deck: gameState.selectedCards,
-            specialMove: gameState.player.specialMove
+            specialMove:{ 
+                name: gameState.player.specialMove.name,
+                description: gameState.player.specialMove.description,
+                effect: gameState.player.specialMove.effect.toString()
+                }
         });
     } else {
         alert("Please build your deck first!");
@@ -1664,7 +1729,10 @@
                     name: gameState.player.name,
                     avatar: gameState.player.avatar,
                     deck: gameState.selectedCards,
-                    specialMove: gameState.player.specialMove
+                    specialMove:{
+                        name: gameState.player.specialMove .name,
+                        description: gameState.player.specialMove.description
+                    }
                 }
             });
         }
@@ -2063,7 +2131,7 @@ function dealCards() {
         
         // Update game state
         elements.turnIndicator.style.display = 'block';
-        addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.ai.name}`);
+       addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.isMultiplayer ? gameState.opponent.name : gameState.ai.name}`);
         addToLog(`Player goes first!`);
     }, 3000); // Wait for all animations to finish 
 }
@@ -2205,39 +2273,23 @@ function createCardElement(card) {
         // Play Card
 function playCard(cardIndex) {
     if (gameState.gameOver || gameState.currentTurn !== "player") return;
-     console.log("Card clicked:", cardIndex, gameState.player.deck[cardIndex]);
-
-     if (gameState.isMultiplayer) {
-            socket.emit('playCard', {
-                roomId: gameState.roomId,
-                cardIndex: cardIndex
-            });
-            
-            const card = gameState.player.deck[cardIndex];
-            applyCardEffects(card, gameState.player, gameState.opponent);
-            
-            gameState.currentTurn = "opponent";
-            updateUI();
-        } else {
+    console.log("Card clicked:", cardIndex, gameState.player.deck[cardIndex]);
 
     const player = gameState.player;
-    const ai = gameState.ai;
     const card = player.deck[cardIndex];
+    
+    if (!card) {
+        console.error("Invalid card index:", cardIndex);
+        return;
+    }
 
     // Play sound based on card type
-    if (card.name === "Crush") {
-        playCrushSound();
-    } else if (card.name === "Egg") {
-        playEggSound();   
-    } else if (card.name === "Fireball") {
-        playFireballSound();
-    } else if (card.type === "attack") {
-        playAttackSound();
-    } else if (card.type === "heal") {
-        playHealSound();
-    } else if (card.name === "Shield") {
-        playShieldSound();
-    }
+    if (card.name === "Crush") playCrushSound();
+    else if (card.name === "Egg") playEggSound();   
+    else if (card.name === "Fireball") playFireballSound();
+    else if (card.type === "attack") playAttackSound();
+    else if (card.type === "heal") playHealSound();
+    else if (card.name === "Shield") playShieldSound();
 
     // Animation
     const cardElement = elements.playerDeck.children[cardIndex];
@@ -2248,208 +2300,213 @@ function playCard(cardIndex) {
         // Clear animation class
         cardElement.classList.remove('card-play-anim');
 
-        if (card.type === "attack" || card.name === "Egg") {
-            let damage = card.power;
+        if (gameState.isMultiplayer) {
+            // Multiplayer logic
+            socket.emit('playCard', {
+                roomId: gameState.roomId,
+                cardIndex: cardIndex
+            });
             
-            // Check for double attack
-    if (player.nextAttackDoubled) {
-        damage *= 2;
-        addToLog(`Matrix Glitch doubles ${card.name}'s power to ${damage}!`);
-        player.nextAttackDoubled = false; // Reset after use
-    }
+            // Apply effects locally immediately for responsiveness
+            const target = gameState.opponent;
+            applyCardEffects(card, player, target);
             
-            // Check for AI shield
-            if (ai.shieldActive) {
-                damage = Math.max(1, Math.floor(damage / 2));
-                addToLog(`${ai.name}'s Shield reduces damage to ${damage}!`);
-                ai.shieldActive = false;
-                
-                // Visual effect for shield blocking
-                const shieldEffect = document.createElement('div');
-                shieldEffect.className = 'shield-effect';
-                cardElement.appendChild(shieldEffect);
-                setTimeout(() => shieldEffect.remove(), 500);
-            }
+            // Update UI immediately
+            elements.aiHealthBar.style.width = `${target.health}%`;
+            elements.aiHealthText.textContent = `${target.health}/100`;
             
-            ai.health -= damage;
-            if (ai.health < 0) ai.health = 0;
-            addToLog(`${player.name} hits with ${card.name} for ${damage} damage!`);
-            cardElement.classList.add('damage-effect');
+            // Switch turns
+            gameState.currentTurn = "opponent";
+            updateUI();
+        } else {
+            // Single-player logic
+            const ai = gameState.ai;
+            applyCardEffects(card, player, ai);
             
             // Update AI health display immediately
             elements.aiHealthBar.style.width = `${ai.health}%`;
             elements.aiHealthText.textContent = `${ai.health}/100`;
-        } 
-        else if (card.type === "heal") {
-            let healAmount = card.power;
-            
-            // Apply Matrix Glitch effect if active
-           
-            
-            player.health += healAmount;
-            if (player.health > 100) player.health = 100;
-            addToLog(`${player.name} heals for ${healAmount} HP!`);
-            cardElement.classList.add('heal-effect');
-            
-            // Update player health display immediately
-            elements.playerHealthBar.style.width = `${player.health}%`;
-            elements.playerHealthText.textContent = `${player.health}/100`;
-        }
-        else if (card.name === "Shield") {
-            // Shield activates for one turn
-            player.shieldActive = true;
-            addToLog(`${player.name} activates Shield! Next attack will be halved!`);
-            cardElement.classList.add('block-effect');
-            
-            // Visual effect for shield activation
-            const shieldActivate = document.createElement('div');
-            shieldActivate.className = 'shield-activate';
-            cardElement.appendChild(shieldActivate);
-            setTimeout(() => shieldActivate.remove(), 800);
-        }
 
-        // Remove used card
-        player.deck.splice(cardIndex, 1);
+            // Remove used card
+            player.deck.splice(cardIndex, 1);
 
-        // Draw new card if we have less than 5
-        if (player.deck.length < 5) {
-            const newCard = {...gameState.selectedCards[Math.floor(Math.random() * gameState.selectedCards.length)]};
-            player.deck.push(newCard);
-            
-            // Animate the new card being drawn
-            setTimeout(() => {
-                const newCardElement = createCardElement(newCard);
-                newCardElement.style.opacity = '0';
-                elements.playerDeck.appendChild(newCardElement);
+            // Draw new card if we have less than 5
+            if (player.deck.length < 5) {
+                const newCard = {...gameState.selectedCards[Math.floor(Math.random() * gameState.selectedCards.length)]};
+                player.deck.push(newCard);
                 
-                // Animate the card appearing
+                // Animate the new card being drawn
                 setTimeout(() => {
-                    newCardElement.style.transition = 'opacity 0.5s';
-                    newCardElement.style.opacity = '1';
-                }, 50);
-            }, 300);
-        }
+                    const newCardElement = createCardElement(newCard);
+                    newCardElement.style.opacity = '0';
+                    elements.playerDeck.appendChild(newCardElement);
+                    
+                    // Animate the card appearing
+                    setTimeout(() => {
+                        newCardElement.style.transition = 'opacity 0.5s';
+                        newCardElement.style.opacity = '1';
+                    }, 50);
+                }, 300);
+            }
 
-        // Check if game is over
-        if (ai.health <= 0 || player.health <= 0) {
-            endGame();
-            return;
-        }
+            // Check if game is over
+            if (ai.health <= 0 || player.health <= 0) {
+                endGame();
+                return;
+            }
 
-        // Decrement Matrix Glitch turns if active
-       
+            // Check for extra turns from special move
+            if (player.extraTurns && player.extraTurns > 0) {
+                player.extraTurns--;
+                addToLog(`${player.name} gets an extra turn!`);
+                updateUI();
+            } else {
+                // Switch to AI turn
+                gameState.currentTurn = "ai";
+                updateUI();
 
-        // Check for extra turns from special move
-        if (player.extraTurns && player.extraTurns > 0) {
-            player.extraTurns--;
-            addToLog(`${player.name} gets an extra turn!`);
-            updateUI();
-        } else {
-            // Switch to AI turn
-            gameState.currentTurn = "ai";
-            updateUI();
-
-            // AI moves after delay
-            setTimeout(() => {
-                if (!gameState.gameOver) {
-                    makeAIMove();
-                }
-            }, 1000);
+                // AI moves after delay
+                setTimeout(() => {
+                    if (!gameState.gameOver) {
+                        makeAIMove();
+                    }
+                }, 1000);
+            }
         }
     }, 300);
-}}
-
+}
 function useSpecialMove() {
-    if (gameState.gameOver || gameState.currentTurn !== "player" || gameState.player.specialMoveUsed) return;
+    // Validate conditions
+    if (gameState.gameOver || 
+        gameState.currentTurn !== "player" || 
+        gameState.player.specialMoveUsed || 
+        !gameState.player.specialMove) {
+        return;
+    }
 
     const player = gameState.player;
     const target = gameState.isMultiplayer ? gameState.opponent : gameState.ai;
 
-    // Play appropriate sound effect based on move
-    if (player.specialMove.name.includes("Founder Dominance")) {
-        playDominanceSound();
-    } else if (player.specialMove.name.includes("Cat")) {
-        playCatSound();
-    } else if (player.specialMove.name.includes("Batman")) {
-        playBatmanSound();
-    } else if (player.specialMove.name.includes("Clown")) {
-        playClownSound();
-    } else if (player.specialMove.name.includes("Love")) {
-        playLoveSound();
-    } else if (player.specialMove.name.includes("Egg")) {
-        playEggySound();
-    } else if (player.specialMove.name.includes("Matrix")) {
-        playMatrixSound();
-    } else if (player.specialMove.name.includes("Dictator")) {
-        playDictatorSound();
-    } else if (player.specialMove.name.includes("Proofer") ||
-               player.specialMove.name.includes("Artiste") ||
-               player.specialMove.name.includes("Helper")) {
-        playHealerSound();
-    } else if (player.specialMove.name.includes("Simp")) {
-        playSimpSound();
-    } else {
-        playSpecialSound();
-    }
+    try {
+        // Check if effect exists and is a function
+        if (typeof player.specialMove.effect !== 'function') {
+            throw new Error("Special move effect is not a function");
+        }
 
-    // Mark special move as used
-    player.specialMoveUsed = true;
-    
-    // Update UI immediately to disable button
-    updateUI();
-    
-    if (gameState.isMultiplayer) {
-        socket.emit('useSpecialMove', {
-            roomId: gameState.roomId
-        });
-    }
-    
-    // Show notification
-    showNotification(`${player.specialMove.name} USED!`, 1500);
-    
-    // Apply special move effect
-    const message = player.specialMove.effect(player, target);
-    addToLog(message);
-    
-    // Update health displays
-    elements.playerHealthBar.style.width = `${player.health}%`;
-    elements.playerHealthText.textContent = `${player.health}/100`;
-    elements.aiHealthBar.style.width = `${target.health}%`;
-    elements.aiHealthText.textContent = `${target.health}/100`;
-    
-    // Check for game over
-    if (target.health <= 0 || player.health <= 0) {
-        endGame();
-        return;
-    }
-    
-    // Determine if move grants extra turn
-    const extraTurnMoves = ["Botman", "Queen", "Love Bomb", "Matrix Glitch"];
-    const grantsExtraTurn = extraTurnMoves.includes(player.specialMove.name);
-    
-    if (!grantsExtraTurn) {
-        // Standard behavior - switch turns
-        setTimeout(() => {
-            gameState.currentTurn = gameState.isMultiplayer ? "opponent" : "ai";
-            updateUI();
-            
-            // If single-player and AI's turn, make AI move
-            if (!gameState.isMultiplayer && !gameState.gameOver) {
-                setTimeout(() => makeAIMove(), 1000);
-            }
-        }, 500);
-    } else {
-        // Special moves that grant extra turns
-        if (player.specialMove.name === "Matrix Glitch") {
-            // Add visual effect to cards
-            const cards = elements.playerDeck.querySelectorAll('.card');
-            cards.forEach(card => {
-                card.classList.add('glitch-effect');
-                setTimeout(() => card.classList.remove('glitch-effect'), 1000);
+        // Play appropriate sound effect
+        if (player.specialMove.name.includes("Founder Dominance")) {
+            playDominanceSound();
+        } else if (player.specialMove.name.includes("Cat")) {
+            playCatSound();
+        } else if (player.specialMove.name.includes("Batman")) {
+            playBatmanSound();
+        } else if (player.specialMove.name.includes("Clown")) {
+            playClownSound();
+        } else if (player.specialMove.name.includes("Love")) {
+            playLoveSound();
+        } else if (player.specialMove.name.includes("Egg")) {
+            playEggySound();
+        } else if (player.specialMove.name.includes("Matrix")) {
+            playMatrixSound();
+        } else if (player.specialMove.name.includes("Dictator")) {
+            playDictatorSound();
+        } else if (player.specialMove.name.includes("Proofer") ||
+                   player.specialMove.name.includes("Artiste") ||
+                   player.specialMove.name.includes("Helper")) {
+            playHealerSound();
+        } else if (player.specialMove.name.includes("Simp")) {
+            playSimpSound();
+        } else {
+            playSpecialSound();
+        }
+
+        // Mark special move as used
+        player.specialMoveUsed = true;
+        updateUI();
+
+        // Show notification
+        showNotification(`${player.specialMove.name} USED!`, 1500);
+
+        // Apply the effect
+        const message = player.specialMove.effect(player, target);
+        addToLog(message);
+
+        if (gameState.isMultiplayer) {
+            // Multiplayer logic
+            socket.emit('specialMoveUsed', {
+                roomId: gameState.roomId,
+                playerId: socket.id,
+                moveName: player.specialMove.name
             });
         }
-        addToLog(`${player.name} gets to keep their turn!`);
+
+        // Update health displays
+        updateUI();
+
+        // Check for game over
+        if (target.health <= 0 || player.health <= 0) {
+            endGame();
+            return;
+        }
+
+        // Handle special moves that grant extra turns
+        const extraTurnMoves = ["Botman", "Queen", "Love Bomb", "Matrix Glitch"];
+        const grantsExtraTurn = extraTurnMoves.includes(player.specialMove.name);
+        
+        if (!grantsExtraTurn) {
+            // Standard behavior - switch turns
+            setTimeout(() => {
+                gameState.currentTurn = gameState.isMultiplayer ? "opponent" : "ai";
+                updateUI();
+                
+                // If single-player and AI's turn, make AI move
+                if (!gameState.isMultiplayer && !gameState.gameOver) {
+                    setTimeout(() => makeAIMove(), 1000);
+                }
+            }, 500);
+        } else {
+            // Special moves that grant extra turns
+            if (player.specialMove.name === "Matrix Glitch") {
+                // Add visual effect to cards
+                const cards = elements.playerDeck.querySelectorAll('.card');
+                cards.forEach(card => {
+                    card.classList.add('glitch-effect');
+                    setTimeout(() => card.classList.remove('glitch-effect'), 1000);
+                });
+                player.nextAttackDoubled = true;
+            }
+            addToLog(`${player.name} gets to keep their turn!`);
+        }
+
+    } catch(error) {
+        console.error("Error applying special move:", error);
+        addToLog(`Failed to use ${gameState.player.specialMove.name}!`);
+        return; // Exit the function if the effect fails
     }
+}
+// When receiving player data in multiplayer
+function reconstructSpecialMove(specialMoveData) {
+    // Create a new special move object
+    const specialMove = {
+        name: specialMoveData.name,
+        description: specialMoveData.description
+    };
+    
+    // Recreate the effect function based on the move name
+    switch(specialMoveData.name) {
+        case "Founder Dominance":
+            specialMove.effect = (user, target) => {
+                target.health -= 40;
+                if (target.health < 0) target.health = 0;
+                return `${user.name} uses Founder Dominance! Deals 40 damage to ${target.name}!`;
+            };
+            break;
+        // Add cases for all your special moves...
+        default:
+            specialMove.effect = () => "Special move used!";
+    }
+    
+    return specialMove;
 }
 
         // AI Move
@@ -2883,3 +2940,4 @@ initCharacterSelection();
     </script>
 </body>
 </html>
+

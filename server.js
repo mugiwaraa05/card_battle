@@ -61,23 +61,23 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Player ready
-  socket.on('playerReady', ({ roomId, deck }) => {
-    const room = rooms.get(roomId);
-    if (!room) return;
+  socket.on('playerReady', ({ roomId, deck, specialMove }) => {
+  const room = rooms.get(roomId);
+  if (!room) return;
 
-    const player = room.players.find(p => p.socketId === socket.id);
-    if (!player) return;
-
+  const player = room.players.find(p => p.socketId === socket.id);
+  if (player) {
     player.ready = true;
     player.deck = deck;
+    player.specialMove = specialMove;  // ✅ properly assign it
 
     console.log(`✅ Player ${player.name} is ready in room ${roomId}`);
 
     if (room.players.length === 2 && room.players.every(p => p.ready)) {
       startGame(roomId);
     }
-  });
+  }
+});
 
   // Play card
   socket.on('playCard', ({ roomId, cardIndex }) => {
@@ -128,6 +128,7 @@ function startGame(roomId) {
       avatar: player.avatar,
       health: 100,
       deck: player.deck,
+      specialMove: player.specialMove,
       specialMoveUsed: false
     })),
     currentTurn: room.players[0].socketId,

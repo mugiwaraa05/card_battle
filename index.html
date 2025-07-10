@@ -1478,53 +1478,72 @@
   // Mark yourself ready
   socket.emit('playerReady', {
     roomId,
-    deck: gameState.selectedCards
+    deck: gameState.selectedCards,
+    specialMove: gameState.player.specialMove
   });
 });
 
 
-    socket.on('gameStarted', ({ players, currentTurn }) => {
-    elements.multiplayerMenu.style.display = 'none';
-    elements.gameContainer.style.display = 'flex';
-    
-    const localPlayer = players.find(p => p.socketId === socket.id);
-    const opponent = players.find(p => p.socketId !== socket.id);
-    
-    gameState.player = {
-        ...localPlayer,
-        health: 100,
-        specialMoveUsed: false,
-        extraTurns: 0,
-        shieldActive: false,
-        nextAttackDoubled: false
-    };
-    
-    gameState.opponent = {
-        ...opponent,
-        health: 100,
-        specialMoveUsed: false,
-        extraTurns: 0,
-        shieldActive: false,
-        nextAttackDoubled: false
-    };
-    
-    gameState.currentTurn = currentTurn === socket.id ? "player" : "opponent";
-    
-    // Update UI labels for multiplayer
-    elements.aiName.textContent = gameState.opponent.name;
-    elements.aiAvatar.src = gameState.opponent.avatar;
-    
-    // Initialize battle
-    updateUI();
-    animateCardsDrop();
-    
-    addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.opponent.name}`);
-    if (gameState.currentTurn === "player") {
-        addToLog("You go first!");
-    } else {
-        addToLog(`${gameState.opponent.name} goes first!`);
-    }
+   socket.on('gameStarted', ({ players, currentTurn }) => {
+    console.log("🧪 gameStarted data:", players);
+
+  elements.multiplayerMenu.style.display = 'none';
+  elements.gameContainer.style.display = 'flex';
+
+  if (!Array.isArray(players) || players.length !== 2) {
+    console.error("Invalid players array:", players);
+    return;
+  }
+
+  const localPlayer = players.find(p => p.socketId === socket.id);
+  const opponent = players.find(p => p.socketId !== socket.id);
+
+  if (!localPlayer || !opponent) {
+    console.error("Failed to assign localPlayer or opponent", { players, socketId: socket.id });
+    return;
+  }
+
+  gameState.player = {
+    ...localPlayer,
+    extraTurns: 0,
+    shieldActive: false,
+    nextAttackDoubled: false,
+    specialMove: localPlayer.specialMove,
+    specialMoveUsed: localPlayer.specialMoveUsed || false,
+    health: localPlayer.health ?? 100
+  };
+
+  gameState.opponent = {
+    ...opponent,
+    extraTurns: 0,
+    shieldActive: false,
+    nextAttackDoubled: false,
+    specialMoveUsed: opponent.specialMoveUsed || false,
+    health: opponent.health ?? 100
+  };
+
+  gameState.currentTurn = currentTurn === socket.id ? "player" : "opponent";
+  gameState.isMultiplayer = true;
+  gameState.roomId = gameState.roomId || localPlayer.roomId; // fallback
+
+  playBackgroundMusic();
+
+  elements.aiName.textContent = gameState.opponent.name;
+  elements.aiAvatar.src = gameState.opponent.avatar;
+
+  console.log("🎴 Your deck:", gameState.player.deck);
+  console.log("🧠 Opponent:", gameState.opponent);
+
+  updateUI();
+  animateCardsDrop(); // Ensure deck is loaded before this
+
+  addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.opponent.name}`);
+  addToLog(gameState.currentTurn === "player"
+    ? "You go first!"
+    : `${gameState.opponent.name} goes first!`);
 });
+
+
 
     socket.on('cardPlayed', ({ playerId, cardIndex }) => {
         if (playerId === socket.id) return;
@@ -2105,68 +2124,88 @@ function createCardElement(card) {
         }
 
         // Update UI
-        function updateUI() {
-            // Player Info
-            elements.playerName.textContent = gameState.player.name;
-            elements.playerAvatar.src = gameState.player.avatar;
-            elements.playerHealthBar.style.width = `${gameState.player.health}%`;
-            elements.playerHealthText.textContent = `${gameState.player.health}/100`;
+     function updateUI() {
+    if (!gameState.player || (!gameState.ai && !gameState.opponent)) return;
 
-            // AI Info
-            elements.aiName.textContent = gameState.ai.name;
-            elements.aiAvatar.src = gameState.ai.avatar;
-            elements.aiHealthBar.style.width = `${gameState.ai.health}%`;
-            elements.aiHealthText.textContent = `${gameState.ai.health}/100`;
+    const opponent = gameState.isMultiplayer ? gameState.opponent : gameState.ai;
+    if (!opponent) {
+        console.warn("Opponent not ready yet", gameState);
+        return;
+    }
+    if (!gameState.player.specialMove) {
+  console.error("❌ specialMove is undefined!", gameState.player);
+  elements.specialMoveBtn.textContent = "SPECIAL MOVE ERROR";
+  return;
+}
 
-            // Turn Indicator
-            elements.turnIndicator.textContent = gameState.currentTurn === "player" ? "YOUR TURN" : "AI'S TURN";
+    // Player Info
+    elements.playerName.textContent = gameState.player.name;
+    elements.playerAvatar.src = gameState.player.avatar;
+    elements.playerHealthBar.style.width = `${gameState.player.health}%`;
+    elements.playerHealthText.textContent = `${gameState.player.health}/100`;
 
-            // Special Move Button
-            elements.specialMoveBtn.disabled = 
-                gameState.currentTurn !== "player" || 
-                gameState.player.specialMoveUsed || 
-                gameState.gameOver;
-            
-            if (!gameState.player.specialMoveUsed) {
-                elements.specialMoveBtn.textContent = `USE ${gameState.player.specialMove.name}`;
-            } else {
-                elements.specialMoveBtn.textContent = "SPECIAL MOVE USED";
-            }
+    // Opponent Info
+    elements.aiName.textContent = opponent.name;
+    elements.aiAvatar.src = opponent.avatar;
+    elements.aiHealthBar.style.width = `${opponent.health}%`;
+    elements.aiHealthText.textContent = `${opponent.health}/100`;
 
-            // Render Decks
-            renderDecks();
-        }
+    // Turn Indicator
+    elements.turnIndicator.textContent =
+        gameState.currentTurn === "player"
+            ? "YOUR TURN"
+            : `${opponent.name.toUpperCase()}'S TURN`;
+
+    // Special Move Button
+    elements.specialMoveBtn.disabled =
+        gameState.currentTurn !== "player" ||
+        gameState.player.specialMoveUsed ||
+        gameState.gameOver;
+
+   elements.specialMoveBtn.textContent = gameState.player.specialMoveUsed
+  ? "SPECIAL MOVE USED"
+  : `USE ${gameState.player.specialMove?.name || "SPECIAL"}`;
+
+    // Render Cards
+    renderDecks();
+}
 
         // Render Decks
-        function renderDecks() {
-            elements.playerDeck.innerHTML = '';
-            elements.aiDeck.innerHTML = '';
+       function renderDecks() {
+    elements.playerDeck.innerHTML = '';
+    elements.aiDeck.innerHTML = '';
 
-            // Player Cards
-            gameState.player.deck.forEach((card, index) => {
-                const cardElement = document.createElement('div');
-                cardElement.className = `card ${card.type}`;
-                cardElement.innerHTML = `
-                    <div class="card-name">${card.name}</div>
-                    <div class="card-icon">${card.icon}</div>
-                    <div class="card-value">${card.power}</div>
-                `;
-                cardElement.addEventListener('click', () => playCard(index));
-                elements.playerDeck.appendChild(cardElement);
-            });
-
-            // AI Cards (face down)
-            gameState.ai.deck.forEach(() => {
-                const cardElement = document.createElement('div');
-                cardElement.className = 'card ai-card';
-                cardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
-                elements.aiDeck.appendChild(cardElement);
-            });
+    // Player Cards
+    gameState.player.deck.forEach((card, index) => {
+        const cardElement = document.createElement('div');
+        cardElement.className = `card ${card.type}`;
+        cardElement.innerHTML = `
+            <div class="card-name">${card.name}</div>
+            <div class="card-icon">${card.icon}</div>
+            <div class="card-value">${card.power}</div>
+        `;
+        if (gameState.currentTurn === "player" && !gameState.gameOver) {
+            cardElement.addEventListener('click', () => playCard(index));
         }
+        elements.playerDeck.appendChild(cardElement);
+    });
+
+    // Opponent Cards (face down)
+    const opponentDeck = gameState.isMultiplayer ? gameState.opponent.deck : gameState.ai.deck;
+
+    opponentDeck.forEach(() => {
+        const cardElement = document.createElement('div');
+        cardElement.className = 'card ai-card';
+        cardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
+        elements.aiDeck.appendChild(cardElement);
+    });
+}
+
 
         // Play Card
 function playCard(cardIndex) {
     if (gameState.gameOver || gameState.currentTurn !== "player") return;
+     console.log("Card clicked:", cardIndex, gameState.player.deck[cardIndex]);
 
      if (gameState.isMultiplayer) {
             socket.emit('playCard', {

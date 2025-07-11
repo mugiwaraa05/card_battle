@@ -116,8 +116,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('playCard', ({ roomId, cardIndex, card, newCard }) => {
-    console.log('playCard received:', { roomId, cardIndex, card, newCard });
+  socket.on('playCard', ({ roomId, cardIndex, card, newCard, playerHealth, opponentHealth, playerName, opponentName, extraTurn }) => {
+    console.log('playCard received:', { roomId, cardIndex, card, newCard, playerHealth, opponentHealth, extraTurn });
     const room = rooms[roomId];
     if (!room) {
       socket.emit('error', 'Room not found');
@@ -141,8 +141,25 @@ io.on('connection', (socket) => {
       player.deckSize = player.deck.length;
     }
 
-    io.to(opponent.socketId).emit('cardPlayed', { playerId: socket.id, cardIndex, card });
-    console.log(`cardPlayed emitted to ${opponent.socketId}:`, { playerId: socket.id, cardIndex, card });
+    // Emit cardPlayed with health and flags, similar to specialMoveApplied
+    io.to(roomId).emit('cardPlayed', {
+      playerId: socket.id,
+      cardIndex,
+      card,
+      playerHealth: player.health,
+      opponentHealth: opponent.health,
+      message: `${playerName} plays ${card.name}!`,
+      extraTurn: extraTurn || player.extraTurns > 0
+    });
+    console.log(`cardPlayed emitted to room ${roomId}:`, {
+      playerId: socket.id,
+      cardIndex,
+      card,
+      playerHealth: player.health,
+      opponentHealth: opponent.health,
+      message: `${playerName} plays ${card.name}!`,
+      extraTurn: extraTurn || player.extraTurns > 0
+    });
 
     if (player.health <= 0 || opponent.health <= 0) {
       const winner = player.health <= 0 && opponent.health <= 0 ? null :
@@ -152,7 +169,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    room.currentTurn = player.extraTurns > 0 ? socket.id : opponent.socketId;
+    room.currentTurn = extraTurn || player.extraTurns > 0 ? socket.id : opponent.socketId;
     if (player.extraTurns > 0) {
       player.extraTurns--;
       console.log(`${player.name} gets extra turn, extraTurns left: ${player.extraTurns}`);
@@ -234,7 +251,7 @@ io.on('connection', (socket) => {
             deckSize: opponent.deck.length,
             specialMoveUsed: opponent.specialMoveUsed,
             shieldActive: opponent.shieldActive,
-            nextAttackDoubled: opponent.nextAttackDoubled,
+            nextAttackDoubled: player.nextAttackDoubled,
             extraTurns: opponent.extraTurns
           }
         ],

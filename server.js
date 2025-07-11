@@ -158,7 +158,7 @@ io.on('connection', (socket) => {
       console.log(`${player.name} gets extra turn, extraTurns left: ${player.extraTurns}`);
     }
 
-    io.to(roomId).emit('gameStateUpdated', {
+    const gameStateUpdate = {
       players: [
         {
           socketId: player.socketId,
@@ -183,15 +183,9 @@ io.on('connection', (socket) => {
       ],
       currentTurn: room.currentTurn,
       roomId
-    });
-    console.log('gameStateUpdated emitted:', {
-      players: [
-        { socketId: player.socketId, health: player.health, deckSize: player.deck.length, extraTurns: player.extraTurns },
-        { socketId: opponent.socketId, health: opponent.health, deckSize: opponent.deck.length, extraTurns: opponent.extraTurns }
-      ],
-      currentTurn: room.currentTurn,
-      roomId
-    });
+    };
+    io.to(roomId).emit('gameStateUpdated', gameStateUpdate);
+    console.log('gameStateUpdated emitted to room:', roomId, gameStateUpdate);
   });
 
   socket.on('useSpecialMove', ({ roomId, playerId, message, playerHealth, opponentHealth, playerName, opponentName, specialMoveName, extraTurn, doubleDamage }) => {

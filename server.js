@@ -40,7 +40,8 @@ io.on('connection', (socket) => {
         extraTurns: 0,
         shieldActive: false,
         nextAttackDoubled: false,
-        ready: false
+        ready: false,
+        restartRequested: false // Track restart requests
       }],
       gameState: null,
       currentTurn: null
@@ -79,7 +80,8 @@ io.on('connection', (socket) => {
       extraTurns: 0,
       shieldActive: false,
       nextAttackDoubled: false,
-      ready: false
+      ready: false,
+      restartRequested: false
     });
     socket.join(roomId);
     console.log(`🟡 Player ${playerData.name} (${socket.id}) joined room ${roomId}`);
@@ -117,7 +119,39 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('playCard', ({ roomId, cardIndex }) => {
+  socket.on('requestRestart', ({ roomId }) => {
+    const room = rooms.get(roomId);
+    if (!room || !room.gameState) {
+      socket.emit('error', 'Room does not exist or game not started');
+      console.error(`Room ${roomId} not found for requestRestart by ${socket.id}`);
+      return;
+    }
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player) {
+      socket.emit('error', 'Player not found in room');
+      console.error(`Player ${socket.id} not found in room ${roomId}`);
+      return;
+    }
+    player.restartRequested = true;
+    console.log(`🔄 ${player.name} requested restart in room ${roomId}`);
+    io.to(roomId).emit('restartRequested', { playerId: socket.id, playerName: player.name });
+
+    if (room.players.length === 2 && room.players.every(p => p.restartRequested)) {
+      room.players.forEach(p => {
+        p.restartRequested = false;
+        p.health = 100;
+        p.specialMoveUsed = false;
+        p.deckSize = p.deck.length;
+        p.extraTurns = 0;
+        p.shieldActive = false;
+        p.nextAttackDoubled = false;
+      });
+      startGame(roomId);
+      console.log(`🔄 Game restarted in room ${roomId}`);
+    }
+  });
+
+  socket.on('playCard', ({ roomId, cardIndex, card }) => {
     const room = rooms.get(roomId);
     if (!room || !room.gameState) {
       socket.emit('error', 'Room does not exist or game not started');
@@ -131,7 +165,6 @@ io.on('connection', (socket) => {
     }
     const currentPlayer = room.gameState.players.find(p => p.socketId === socket.id);
     const opponent = room.gameState.players.find(p => p.socketId !== socket.id);
-    const card = currentPlayer.deck[cardIndex];
     if (!card || !currentPlayer || !opponent) {
       socket.emit('error', 'Invalid card play attempt');
       console.error('Invalid playCard attempt:', { roomId, cardIndex, card, socketId: socket.id });
@@ -215,7 +248,6 @@ io.on('connection', (socket) => {
       return;
     }
     io.to(roomId).emit('gameOver', { winner });
-    rooms.delete(roomId);
     console.log(`🏁 Game over in room ${roomId}, winner: ${winner || 'draw'}`);
   });
 

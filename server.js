@@ -1,369 +1,311 @@
-
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
-
 const app = express();
-app.use(cors());
+const http = require('http').createServer(app);
+const io = require('socket.io')(http, { cors: { origin: '*' } });
+const { v4: uuidv4 } = require('uuid');
 
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+const rooms = {};
+
+function applyCardEffects(card, user, target, room) {
+  if (card.type === "attack" || card.name === "Egg") {
+    let damage = card.power;
+    if (user.nextAttackDoubled) {
+      damage *= 2;
+      user.nextAttackDoubled = false;
+    }
+    if (target.shieldActive) {
+      damage = Math.max(1, Math.floor(damage / 2));
+      target.shieldActive = false;
+    }
+    target.health -= damage;
+    if (target.health < 0) target.health = 0;
+  } else if (card.type === "heal") {
+    user.health += card.power;
+    if (user.health > 100) user.health = 100;
+  } else if (card.name === "Shield") {
+    user.shieldActive = true;
   }
-});
-
-const rooms = new Map();
+}
 
 io.on('connection', (socket) => {
-  console.log('📡 New connection:', socket.id);
-
-  socket.on('createRoom', (playerData) => {
-    if (!playerData || !playerData.name || !playerData.avatar || !playerData.deck || !playerData.deck.length || !playerData.specialMove || !playerData.specialMove.name || !playerData.specialMove.description) {
-      socket.emit('error', 'Invalid player data for room creation');
-      console.error('Invalid createRoom data:', playerData);
-      return;
-    }
-    const roomId = generateRoomId();
-    rooms.set(roomId, {
+  socket.on('createRoom', ({ name, avatar, deck, specialMove }) => {
+    const roomId = uuidv4().slice(0, 6).toUpperCase();
+    rooms[roomId] = {
       players: [{
         socketId: socket.id,
-        name: playerData.name,
-        avatar: playerData.avatar,
-        deck: playerData.deck,
-        specialMove: playerData.specialMove,
+        name,
+        avatar,
         health: 100,
+        deck,
+        deckSize: deck.length,
+        deckInitial: [...deck],
+        specialMove,
         specialMoveUsed: false,
-        deckSize: playerData.deck.length,
-        extraTurns: 0,
         shieldActive: false,
         nextAttackDoubled: false,
-        ready: false,
-        restartRequested: false // Track restart requests
+        extraTurns: 0
       }],
-      gameState: null,
-      currentTurn: null
-    });
+      currentTurn: socket.id
+    };
     socket.join(roomId);
-    socket.emit('roomCreated', { roomId, isHost: true });
-    console.log(`🟢 Room ${roomId} created by ${socket.id}`);
+    socket.emit('roomCreated', { roomId });
   });
 
   socket.on('joinRoom', ({ roomId, playerData }) => {
-    const room = rooms.get(roomId);
+    const room = rooms[roomId];
     if (!room) {
-      console.warn(`❌ Room ${roomId} not found`);
-      socket.emit('error', 'Room does not exist');
+      socket.emit('error', 'Room not found');
       return;
     }
     if (room.players.length >= 2) {
-      console.warn(`❌ Room ${roomId} is full`);
       socket.emit('error', 'Room is full');
-      return;
-    }
-    if (!playerData || !playerData.name || !playerData.avatar || !playerData.deck || !playerData.deck.length || !playerData.specialMove || !playerData.specialMove.name || !playerData.specialMove.description) {
-      socket.emit('error', 'Invalid player data for joining room');
-      console.error('Invalid joinRoom data:', playerData);
       return;
     }
     room.players.push({
       socketId: socket.id,
       name: playerData.name,
       avatar: playerData.avatar,
-      deck: playerData.deck,
-      specialMove: playerData.specialMove,
       health: 100,
-      specialMoveUsed: false,
+      deck: playerData.deck,
       deckSize: playerData.deck.length,
-      extraTurns: 0,
+      deckInitial: [...playerData.deck],
+      specialMove: playerData.specialMove,
+      specialMoveUsed: false,
       shieldActive: false,
       nextAttackDoubled: false,
-      ready: false,
-      restartRequested: false
+      extraTurns: 0
     });
     socket.join(roomId);
-    console.log(`🟡 Player ${playerData.name} (${socket.id}) joined room ${roomId}`);
-    console.log(`👥 Players in room ${roomId}:`, room.players.map(p => p.name));
-    io.to(roomId).emit('playerJoined', {
-      players: room.players,
-      roomId
-    });
+    io.to(roomId).emit('playerJoined', { players: room.players, roomId });
   });
 
   socket.on('playerReady', ({ roomId, deck, specialMove }) => {
-    const room = rooms.get(roomId);
-    if (!room) {
-      socket.emit('error', 'Room does not exist');
-      console.error(`Room ${roomId} not found for playerReady by ${socket.id}`);
-      return;
-    }
-    if (!deck || !Array.isArray(deck) || deck.length !== 5 || !specialMove || !specialMove.name || !specialMove.description) {
-      socket.emit('error', 'Invalid deck or special move data');
-      console.error('Invalid playerReady data:', { deck, specialMove });
-      return;
-    }
+    const room = rooms[roomId];
+    if (!room || room.players.length < 2) return;
     const player = room.players.find(p => p.socketId === socket.id);
-    if (!player) {
-      socket.emit('error', 'Player not found in room');
-      console.error(`Player ${socket.id} not found in room ${roomId}`);
-      return;
+    if (player) {
+      player.deck = deck;
+      player.deckSize = deck.length;
+      player.deckInitial = [...deck];
+      player.specialMove = specialMove;
     }
-    player.ready = true;
-    player.deck = deck;
-    player.specialMove = specialMove;
-    console.log(`✅ Player ${player.name} is ready in room ${roomId}`);
-    if (room.players.length === 2 && room.players.every(p => p.ready)) {
-      startGame(roomId);
-    }
-  });
-
-  socket.on('requestRestart', ({ roomId }) => {
-    const room = rooms.get(roomId);
-    if (!room || !room.gameState) {
-      socket.emit('error', 'Room does not exist or game not started');
-      console.error(`Room ${roomId} not found for requestRestart by ${socket.id}`);
-      return;
-    }
-    const player = room.players.find(p => p.socketId === socket.id);
-    if (!player) {
-      socket.emit('error', 'Player not found in room');
-      console.error(`Player ${socket.id} not found in room ${roomId}`);
-      return;
-    }
-    player.restartRequested = true;
-    console.log(`🔄 ${player.name} requested restart in room ${roomId}`);
-    io.to(roomId).emit('restartRequested', { playerId: socket.id, playerName: player.name });
-
-    if (room.players.length === 2 && room.players.every(p => p.restartRequested)) {
-      room.players.forEach(p => {
-        p.restartRequested = false;
-        p.health = 100;
-        p.specialMoveUsed = false;
-        p.deckSize = p.deck.length;
-        p.extraTurns = 0;
-        p.shieldActive = false;
-        p.nextAttackDoubled = false;
+    if (room.players.every(p => p.deck && p.specialMove)) {
+      io.to(roomId).emit('gameStarted', {
+        players: room.players.map(p => ({
+          socketId: p.socketId,
+          name: p.name,
+          avatar: p.avatar,
+          health: p.health,
+          deckSize: p.deckSize,
+          specialMove: { name: p.specialMove.name, description: p.specialMove.description },
+          specialMoveUsed: p.specialMoveUsed,
+          shieldActive: p.shieldActive,
+          nextAttackDoubled: p.nextAttackDoubled,
+          extraTurns: p.extraTurns
+        })),
+        currentTurn: room.currentTurn,
+        roomId
       });
-      startGame(roomId);
-      console.log(`🔄 Game restarted in room ${roomId}`);
     }
   });
 
- socket.on('playCard', ({ roomId, cardIndex, card, newCard }) => {
-  const room = rooms[roomId];
-  if (!room) return;
+  socket.on('playCard', ({ roomId, cardIndex, card, newCard }) => {
+    console.log('playCard received:', { roomId, cardIndex, card, newCard }); // Debug log
+    const room = rooms[roomId];
+    if (!room) {
+      socket.emit('error', 'Room not found');
+      console.error('Room not found:', roomId);
+      return;
+    }
+    const player = room.players.find(p => p.socketId === socket.id);
+    const opponent = room.players.find(p => p.socketId !== socket.id);
+    if (!player || !opponent || room.currentTurn !== socket.id) {
+      socket.emit('error', 'Invalid move');
+      console.error('Invalid move:', { player: !!player, opponent: !!opponent, currentTurn: room.currentTurn, socketId: socket.id });
+      return;
+    }
 
-  const player = room.players.find(p => p.socketId === socket.id);
-  const opponent = room.players.find(p => p.socketId !== socket.id);
-  if (!player || !opponent || room.currentTurn !== socket.id) return;
+    applyCardEffects(card, player, opponent, room);
+    player.deck.splice(cardIndex, 1);
+    if (player.deck.length < 5 && newCard) {
+      player.deck.push(newCard);
+      player.deckSize = player.deck.length;
+    } else {
+      player.deckSize = player.deck.length;
+    }
 
-  // Apply card effects (server-side)
-  applyCardEffects(card, player, opponent, room);
+    io.to(opponent.socketId).emit('cardPlayed', { playerId: socket.id, cardIndex, card });
 
-  // Update player's deck
-  player.deck.splice(cardIndex, 1);
-  if (player.deck.length < 5 && newCard) {
-    player.deck.push(newCard);
-    player.deckSize = player.deck.length;
-  }
+    if (player.health <= 0 || opponent.health <= 0) {
+      const winner = player.health <= 0 && opponent.health <= 0 ? null :
+                     player.health > 0 ? player.socketId : opponent.socketId;
+      io.to(roomId).emit('gameOver', { winner });
+      console.log('Game over:', { winner, playerHealth: player.health, opponentHealth: opponent.health });
+      return;
+    }
 
-  // Emit to opponent
-  io.to(opponent.socketId).emit('cardPlayed', { playerId: socket.id, cardIndex, card });
-
-  // Update game state
-  if (player.health <= 0 || opponent.health <= 0) {
-    const winner = player.health <= 0 && opponent.health <= 0 ? null :
-                   player.health > 0 ? player.socketId : opponent.socketId;
-    io.to(roomId).emit('gameOver', { winner });
-  } else {
     room.currentTurn = player.extraTurns > 0 ? socket.id : opponent.socketId;
     if (player.extraTurns > 0) player.extraTurns--;
+
     io.to(roomId).emit('gameStateUpdated', {
       players: [
-        { socketId: player.socketId, health: player.health, deckSize: player.deck.length, specialMoveUsed: player.specialMoveUsed, shieldActive: player.shieldActive, nextAttackDoubled: player.nextAttackDoubled },
-        { socketId: opponent.socketId, health: opponent.health, deckSize: opponent.deck.length, specialMoveUsed: opponent.specialMoveUsed, shieldActive: opponent.shieldActive, nextAttackDoubled: opponent.nextAttackDoubled }
+        {
+          socketId: player.socketId,
+          name: player.name,
+          health: player.health,
+          deckSize: player.deck.length,
+          specialMoveUsed: player.specialMoveUsed,
+          shieldActive: player.shieldActive,
+          nextAttackDoubled: player.nextAttackDoubled,
+          extraTurns: player.extraTurns
+        },
+        {
+          socketId: opponent.socketId,
+          name: opponent.name,
+          health: opponent.health,
+          deckSize: opponent.deck.length,
+          specialMoveUsed: opponent.specialMoveUsed,
+          shieldActive: opponent.shieldActive,
+          nextAttackDoubled: opponent.nextAttackDoubled,
+          extraTurns: opponent.extraTurns
+        }
       ],
       currentTurn: room.currentTurn,
       roomId
     });
-  }
-});
-  socket.on('useSpecialMove', ({ roomId, playerId, message, playerHealth, opponentHealth, extraTurn, doubleDamage }) => {
-    const room = rooms.get(roomId);
-    if (!room || !room.gameState) {
-      socket.emit('error', 'Room does not exist or game not started');
-      console.error(`Room ${roomId} not found for specialMove by ${socket.id}`);
-      return;
-    }
-    if (room.gameState.currentTurn !== playerId) {
-      socket.emit('error', 'Not your turn');
-      console.error('Invalid specialMove attempt:', { roomId, playerId, currentTurn: room.gameState.currentTurn });
-      return;
-    }
-    const player = room.gameState.players.find(p => p.socketId === playerId);
-    const opponent = room.gameState.players.find(p => p.socketId !== playerId);
-    if (!player || !opponent || playerHealth === undefined || opponentHealth === undefined) {
-      socket.emit('error', 'Invalid special move data');
-      console.error('Invalid specialMove data:', { playerId, playerHealth, opponentHealth });
-      return;
-    }
+    console.log('gameStateUpdated emitted:', {
+      players: [
+        { socketId: player.socketId, health: player.health, deckSize: player.deck.length },
+        { socketId: opponent.socketId, health: opponent.health, deckSize: opponent.deck.length }
+      ],
+      currentTurn: room.currentTurn,
+      roomId
+    });
+  });
+
+  socket.on('useSpecialMove', ({ roomId, playerId, message, playerHealth, opponentHealth, playerName, opponentName, specialMoveName, extraTurn, doubleDamage }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    const player = room.players.find(p => p.socketId === socket.id);
+    const opponent = room.players.find(p => p.socketId !== socket.id);
+    if (!player || !opponent) return;
+
     player.health = playerHealth;
     opponent.health = opponentHealth;
     player.specialMoveUsed = true;
     if (doubleDamage) player.nextAttackDoubled = true;
-    if (extraTurn) player.extraTurns = 1;
-    room.gameState.currentTurn = extraTurn ? playerId : opponent.socketId;
+
     io.to(roomId).emit('specialMoveApplied', {
-      playerId,
+      playerId: socket.id,
       message,
       playerHealth,
       opponentHealth,
       extraTurn,
       doubleDamage
     });
-    io.to(roomId).emit('gameStateUpdated', {
-      players: room.gameState.players,
-      currentTurn: room.gameState.currentTurn,
-      roomId
-    });
+
     if (player.health <= 0 || opponent.health <= 0) {
-      const winner = player.health <= 0 ? opponent.socketId : (opponent.health <= 0 ? playerId : null);
+      const winner = player.health <= 0 && opponent.health <= 0 ? null :
+                     player.health > 0 ? player.socketId : opponent.socketId;
       io.to(roomId).emit('gameOver', { winner });
-      rooms.delete(roomId);
-      console.log(`🏁 Game over in room ${roomId}, winner: ${winner || 'draw'}`);
+    } else {
+      room.currentTurn = extraTurn ? socket.id : opponent.socketId;
+      io.to(roomId).emit('gameStateUpdated', {
+        players: [
+          {
+            socketId: player.socketId,
+            name: player.name,
+            health: player.health,
+            deckSize: player.deck.length,
+            specialMoveUsed: player.specialMoveUsed,
+            shieldActive: player.shieldActive,
+            nextAttackDoubled: player.nextAttackDoubled,
+            extraTurns: player.extraTurns
+          },
+          {
+            socketId: opponent.socketId,
+            name: opponent.name,
+            health: opponent.health,
+            deckSize: opponent.deck.length,
+            specialMoveUsed: opponent.specialMoveUsed,
+            shieldActive: opponent.shieldActive,
+            nextAttackDoubled: opponent.nextAttackDoubled,
+            extraTurns: opponent.extraTurns
+          }
+        ],
+        currentTurn: room.currentTurn,
+        roomId
+      });
     }
-    console.log(`🌟 Special move used in room ${roomId} by ${player.name}: ${message}`);
   });
 
-  socket.on('gameOver', ({ roomId, winner }) => {
-    if (!rooms.get(roomId)) {
-      console.error(`Invalid roomId for gameOver: ${roomId}`);
-      return;
+  socket.on('requestRestart', ({ roomId }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player) return;
+    const opponent = room.players.find(p => p.socketId !== socket.id);
+    if (!opponent) return;
+
+    player.restartRequested = true;
+    io.to(opponent.socketId).emit('restartRequested', { playerId: socket.id, playerName: player.name });
+
+    if (room.players.every(p => p.restartRequested)) {
+      room.players.forEach(p => {
+        p.health = 100;
+        p.deck = [...p.deckInitial];
+        p.deckSize = p.deck.length;
+        p.specialMoveUsed = false;
+        p.shieldActive = false;
+        p.nextAttackDoubled = false;
+        p.extraTurns = 0;
+        p.restartRequested = false;
+      });
+      room.currentTurn = room.players[Math.floor(Math.random() * 2)].socketId;
+      io.to(roomId).emit('gameStarted', {
+        players: room.players.map(p => ({
+          socketId: p.socketId,
+          name: p.name,
+          avatar: p.avatar,
+          health: p.health,
+          deckSize: p.deckSize,
+          specialMove: { name: p.specialMove.name, description: p.specialMove.description },
+          specialMoveUsed: p.specialMoveUsed,
+          shieldActive: p.shieldActive,
+          nextAttackDoubled: p.nextAttackDoubled,
+          extraTurns: p.extraTurns
+        })),
+        currentTurn: room.currentTurn,
+        roomId
+      });
     }
-    io.to(roomId).emit('gameOver', { winner });
-    console.log(`🏁 Game over in room ${roomId}, winner: ${winner || 'draw'}`);
   });
 
   socket.on('leaveRoom', ({ roomId }) => {
-    if (!roomId) {
-      console.error(`Invalid roomId for leaveRoom by ${socket.id}`);
-      return;
+    const room = rooms[roomId];
+    if (!room) return;
+    const remainingPlayers = room.players.filter(p => p.socketId !== socket.id);
+    if (remainingPlayers.length > 0) {
+      io.to(remainingPlayers[0].socketId).emit('opponentDisconnected');
     }
+    delete rooms[roomId];
     socket.leave(roomId);
-    const room = rooms.get(roomId);
-    if (room) {
-      room.players = room.players.filter(p => p.socketId !== socket.id);
-      if (room.players.length === 0) {
-        rooms.delete(roomId);
-        console.log(`🗑️ Room ${roomId} deleted (empty)`);
-      } else {
-        io.to(roomId).emit('opponentDisconnected');
-        console.log(`🚪 Player ${socket.id} left room ${roomId}`);
-      }
-    }
   });
 
   socket.on('disconnect', () => {
-    console.log(`🔴 Client disconnected: ${socket.id}`);
-    for (const [roomId, room] of rooms.entries()) {
-      const index = room.players.findIndex(p => p.socketId === socket.id);
-      if (index !== -1) {
-        room.players.splice(index, 1);
-        if (room.players.length === 0) {
-          rooms.delete(roomId);
-          console.log(`🗑️ Room ${roomId} deleted (empty)`);
-        } else {
-          io.to(roomId).emit('opponentDisconnected');
-          console.log(`📢 Notified room ${roomId} of disconnect`);
+    for (const roomId in rooms) {
+      const room = rooms[roomId];
+      const playerIndex = room.players.findIndex(p => p.socketId === socket.id);
+      if (playerIndex !== -1) {
+        const remainingPlayers = room.players.filter(p => p.socketId !== socket.id);
+        if (remainingPlayers.length > 0) {
+          io.to(remainingPlayers[0].socketId).emit('opponentDisconnected');
         }
-        break;
+        delete rooms[roomId];
       }
     }
   });
-
-  function applyCardEffectsServer(card, user, target) {
-    if (!card || !card.type || card.power === undefined) {
-      console.error('Invalid card data in applyCardEffectsServer:', card);
-      return;
-    }
-    if (card.type === "attack" || card.name === "Egg") {
-      let damage = card.power;
-      if (user.nextAttackDoubled) {
-        damage *= 2;
-        user.nextAttackDoubled = false;
-      }
-      if (target.shieldActive) {
-        damage = Math.max(1, Math.floor(damage / 2));
-        target.shieldActive = false;
-      }
-      target.health -= damage;
-      if (target.health < 0) target.health = 0;
-    } else if (card.type === "heal") {
-      user.health += card.power;
-      if (user.health > 100) user.health = 100;
-    } else if (card.name === "Shield") {
-      user.shieldActive = true;
-    }
-  }
-
-  function getRandomCardServer() {
-    const allCardTypes = [
-      { name: "Slash", type: "attack", power: 15, icon: "⚔️" },
-      { name: "Fireball", type: "attack", power: 20, icon: "🔥" },
-      { name: "Crush", type: "attack", power: 25, icon: "🔨" },
-      { name: "Pierce", type: "attack", power: 18, icon: "🗡️" },
-      { name: "Heal", type: "heal", power: 10, icon: "❤️" },
-      { name: "Cure", type: "heal", power: 15, icon: "✨" },
-      { name: "Revive", type: "heal", power: 15, icon: "🌿" },
-      { name: "Shield", type: "block", power: 0, icon: "🛡️", description: "Blocks half of next attack's damage" },
-      { name: "Egg", type: "attack", power: 28, icon: "🥚" }
-    ];
-    return { ...allCardTypes[Math.floor(Math.random() * allCardTypes.length)] };
-  }
 });
-
-function startGame(roomId) {
-  const room = rooms.get(roomId);
-  if (!room) return;
-
-  room.gameState = {
-    players: room.players.map(player => ({
-      socketId: player.socketId,
-      name: player.name,
-      avatar: player.avatar,
-      health: 100,
-      deck: player.deck,
-      specialMove: player.specialMove,
-      specialMoveUsed: false,
-      deckSize: player.deck.length,
-      extraTurns: 0,
-      shieldActive: false,
-      nextAttackDoubled: false
-    })),
-    currentTurn: room.players[0].socketId,
-    gameOver: false
-  };
-
-  console.log(`🚀 Game started in room ${roomId} with payload:`, JSON.stringify({
-    players: room.gameState.players,
-    currentTurn: room.gameState.currentTurn,
-    roomId
-  }, null, 2));
-
-  io.to(roomId).emit('gameStarted', {
-    players: room.gameState.players,
-    currentTurn: room.gameState.currentTurn,
-    roomId
-  });
-}
-
-function generateRoomId() {
-  return Math.random().toString(36).substring(2, 6).toUpperCase();
-}
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+http.listen(PORT, () => console.log(`Server running on port ${PORT}`));

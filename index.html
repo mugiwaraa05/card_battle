@@ -1038,7 +1038,7 @@
 <div class="main-menu" id="main-menu">
     <h1>SUCCINCT CARD BATTLE</h1>
     <div class="menu-options">
-        <button class="menu-btn" id="normal-mode-btn">NORMAL MODE</button>
+        <button class="menu-btn" id="normal-mode-btn">START GAME</button>
         <button class="menu-btn" id="quit-btn">QUIT</button>
     </div>
 </div>
@@ -1412,7 +1412,8 @@
     nextAttackDoubled: false,
     isMultiplayer: false,
     opponent: null,
-    roomId: null
+    roomId: null,
+    restartRequested: false
   };
 
   // DOM Elements
@@ -1452,6 +1453,10 @@
     roomCodeDisplay: document.getElementById('room-code-display')
   };
 
+  if (!elements.normalModeBtn) console.error("normalModeBtn not found! Check if <button id='normal-mode-btn'> exists in HTML.");
+if (!elements.quitBtn) console.error("quitBtn not found! Check if <button id='quit-btn'> exists in HTML.");
+if (!elements.mainMenu) console.error("mainMenu not found! Check if <div id='main-menu'> exists in HTML.");
+
   // Socket.io Connection
   const socket = io('https://card-battle-u4uz.onrender.com/');
 
@@ -1484,113 +1489,191 @@
     });
   });
 
-  socket.on('gameStarted', ({ players, currentTurn }) => {
-    console.log("🧪 gameStarted data:", players);
-    elements.multiplayerMenu.style.display = 'none';
-    elements.gameContainer.style.display = 'flex';
+ socket.on('gameStarted', ({ players, currentTurn, roomId }) => {
+  console.log("🧪 gameStarted:", { players, currentTurn, roomId });
+  if (!roomId) {
+    console.error('Invalid gameStarted payload: roomId missing', { players, currentTurn, roomId });
+    addToLog('Error: Failed to start game. Missing room ID.');
+    showNotification('Error: Game failed to start due to missing room ID.');
+    newGame();
+    return;
+  }
+  elements.multiplayerMenu.style.display = 'none';
+  elements.gameContainer.style.display = 'flex';
 
-    const localPlayer = players.find(p => p.socketId === socket.id);
-    const opponent = players.find(p => p.socketId !== socket.id);
+  const localPlayer = players.find(p => p.socketId === socket.id);
+  const opponent = players.find(p => p.socketId !== socket.id);
 
-    if (!localPlayer || !opponent) {
-      console.error("Failed to assign localPlayer or opponent", { players, socketId: socket.id });
-      return;
+  if (!localPlayer || !opponent) {
+    console.error("Failed to assign localPlayer or opponent", { players, socketId: socket.id });
+    addToLog('Error: Failed to start game. Invalid player data.');
+    showNotification('Error: Game failed to start due to invalid player data.');
+    newGame();
+    return;
+  }
+
+  gameState.player = {
+    socketId: localPlayer.socketId,
+    name: localPlayer.name,
+    avatar: localPlayer.avatar,
+    health: localPlayer.health ?? 100,
+    deck: gameState.selectedCards,
+    specialMove: reconstructSpecialMove(localPlayer.specialMove),
+    specialMoveUsed: localPlayer.specialMoveUsed ?? false,
+    deckSize: localPlayer.deckSize ?? 5,
+    extraTurns: localPlayer.extraTurns ?? 0,
+    shieldActive: localPlayer.shieldActive ?? false,
+    nextAttackDoubled: localPlayer.nextAttackDoubled ?? false
+  };
+
+  gameState.opponent = {
+    socketId: opponent.socketId,
+    name: opponent.name,
+    avatar: opponent.avatar,
+    health: opponent.health ?? 100,
+    deckSize: opponent.deckSize ?? 5,
+    specialMove: reconstructSpecialMove(opponent.specialMove),
+    specialMoveUsed: opponent.specialMoveUsed ?? false,
+    extraTurns: opponent.extraTurns ?? 0,
+    shieldActive: opponent.shieldActive ?? false,
+    nextAttackDoubled: opponent.nextAttackDoubled ?? false
+  };
+
+  gameState.currentTurn = currentTurn === socket.id ? "player" : "opponent";
+  gameState.isMultiplayer = true;
+  gameState.roomId = roomId;
+  gameState.gameOver = false;
+  gameState.restartRequested = false; // Add this line
+  playBackgroundMusic();
+  elements.aiName.textContent = gameState.opponent.name;
+  elements.aiAvatar.src = gameState.opponent.avatar;
+  updateUI();
+  animateCardsDrop();
+  addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.opponent.name}`);
+  addToLog(gameState.currentTurn === "player" ? "You go first!" : `${gameState.opponent.name} goes first!`);
+});
+
+socket.on('cardPlayed', ({ playerId, cardIndex, card, newCard }) => {
+  console.log("🎴 cardPlayed received:", { playerId, cardIndex, card, newCard });
+  if (playerId === socket.id) {
+    // Update player's deck for consistency
+    gameState.player.deck.splice(cardIndex, 1);
+    gameState.player.deckSize = gameState.player.deck.length;
+    if (newCard && gameState.player.deck.length < 5) {
+      gameState.player.deck.push({ ...newCard });
+      gameState.player.deckSize = gameState.player.deck.length;
+      const newCardElement = document.createElement('div');
+      newCardElement.className = `card ${newCard.type}`;
+      newCardElement.innerHTML = `
+        <div class="card-name">${newCard.name}</div>
+        <div class="card-icon">${newCard.icon}</div>
+        <div class="card-value">${newCard.power}</div>
+      `;
+      newCardElement.style.opacity = '0';
+      elements.playerDeck.appendChild(newCardElement);
+      setTimeout(() => {
+        newCardElement.style.transition = 'opacity 0.5s';
+        newCardElement.style.opacity = '1';
+        if (gameState.currentTurn === "player" && !gameState.gameOver) {
+          newCardElement.addEventListener('click', () => playCard(gameState.player.deck.length - 1));
+        }
+      }, 50);
     }
-
-    gameState.player = {
-      ...localPlayer,
-      deck: gameState.selectedCards, // Use locally selected deck
-      extraTurns: 0,
-      shieldActive: false,
-      nextAttackDoubled: false,
-      specialMove: reconstructSpecialMove(localPlayer.specialMove),
-      specialMoveUsed: false,
-      health: localPlayer.health ?? 100
-    };
-
-    gameState.opponent = {
-      ...opponent,
-      deckSize: 5, // Initial deck size (server doesn't send deck)
-      extraTurns: 0,
-      shieldActive: false,
-      nextAttackDoubled: false,
-      specialMove: reconstructSpecialMove(opponent.specialMove),
-      specialMoveUsed: false,
-      health: opponent.health ?? 100
-    };
-
-    gameState.currentTurn = currentTurn === socket.id ? "player" : "opponent";
-    gameState.isMultiplayer = true;
-    gameState.roomId = roomId;
-
-    playBackgroundMusic();
-    elements.aiName.textContent = gameState.opponent.name;
-    elements.aiAvatar.src = gameState.opponent.avatar;
-
-    updateUI();
-    animateCardsDrop();
-
-    addToLog(`Battle begins: ${gameState.player.name} vs ${gameState.opponent.name}`);
-    addToLog(gameState.currentTurn === "player" ? "You go first!" : `${gameState.opponent.name} goes first!`);
-  });
-
-  socket.on('cardPlayed', ({ playerId, cardIndex }) => {
-    if (playerId === socket.id) return; // Ignore own card play (handled locally)
-
-    const opponent = gameState.opponent;
-    gameState.opponent.deckSize--;
-    if (gameState.opponent.deckSize < 5) gameState.opponent.deckSize++; // Assume draw
-    gameState.currentTurn = "player";
-    elements.turnIndicator.textContent = "YOUR TURN";
-    updateUI();
-  });
-
-  socket.on('gameStateUpdated', (updatedState) => {
-    const localPlayer = updatedState.players.find(p => p.socketId === socket.id);
-    const opponent = updatedState.players.find(p => p.socketId !== socket.id);
-
-    gameState.player.health = localPlayer.health;
-    gameState.player.specialMoveUsed = localPlayer.specialMoveUsed;
-    gameState.opponent.health = opponent.health;
-    gameState.opponent.specialMoveUsed = opponent.specialMoveUsed;
-    gameState.opponent.deckSize = opponent.deckSize;
-    gameState.currentTurn = updatedState.currentTurn === socket.id ? "player" : "opponent";
-    updateUI();
-  });
-
-  socket.on('specialMoveApplied', ({ playerId, message, playerHealth, opponentHealth, extraTurn, doubleDamage }) => {
-    if (playerId === socket.id) {
-      gameState.player.health = playerHealth;
-      gameState.opponent.health = opponentHealth;
-      gameState.player.specialMoveUsed = true;
-      if (doubleDamage) gameState.player.nextAttackDoubled = true;
-      if (!extraTurn) gameState.currentTurn = "opponent";
-    } else {
-      gameState.player.health = opponentHealth;
-      gameState.opponent.health = playerHealth;
-      gameState.opponent.specialMoveUsed = true;
-      if (doubleDamage) gameState.opponent.nextAttackDoubled = true;
-      if (!extraTurn) gameState.currentTurn = "player";
+    addToLog(`${gameState.player.name} plays ${card.name}!`);
+  } else {
+    const opponentDeck = elements.aiDeck;
+    const cardElement = opponentDeck.children[cardIndex];
+    if (cardElement) {
+      cardElement.innerHTML = `
+        <div class="card-name">${card.name}</div>
+        <div class="card-icon">${card.icon}</div>
+        <div class="card-value">${card.power}</div>
+      `;
+      cardElement.classList.add('card-play-anim');
+      if (card.name === "Crush") playCrushSound();
+      else if (card.name === "Egg") playEggSound();
+      else if (card.name === "Fireball") playFireballSound();
+      else if (card.type === "attack") playAttackSound();
+      else if (card.type === "heal") playHealSound();
+      else if (card.name === "Shield") playShieldSound();
+      setTimeout(() => {
+        cardElement.classList.remove('card-play-anim');
+        cardElement.remove();
+        if (newCard && gameState.opponent.deckSize > elements.aiDeck.children.length) {
+          const newCardElement = document.createElement('div');
+          newCardElement.className = 'card ai-card';
+          newCardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
+          newCardElement.style.opacity = '0';
+          opponentDeck.appendChild(newCardElement);
+          setTimeout(() => {
+            newCardElement.style.transition = 'opacity 0.5s';
+            newCardElement.style.opacity = '1';
+          }, 50);
+        }
+      }, 300);
+      addToLog(`${gameState.opponent.name} plays ${card.name}!`);
     }
-    addToLog(message);
-    updateUI();
-  });
+  }
+  // Health and turn updates handled by gameStateUpdated
+});
+
+ socket.on('specialMoveApplied', ({ playerId, message, playerHealth, opponentHealth, extraTurn, doubleDamage }) => {
+  if (playerId === socket.id) {
+    gameState.player.health = playerHealth;
+    gameState.opponent.health = opponentHealth;
+    gameState.player.specialMoveUsed = true;
+    if (doubleDamage) gameState.player.nextAttackDoubled = true;
+    if (!extraTurn) gameState.currentTurn = "opponent";
+  } else {
+    gameState.player.health = opponentHealth;
+    gameState.opponent.health = playerHealth;
+    gameState.opponent.specialMoveUsed = true;
+    if (doubleDamage) gameState.opponent.nextAttackDoubled = true;
+    if (!extraTurn) gameState.currentTurn = "player";
+    if (gameState.opponent.specialMove.name.includes("Dominance")) playDominanceSound();
+    else if (gameState.opponent.specialMove.name.includes("Cat")) playCatSound();
+    else if (gameState.opponent.specialMove.name.includes("Batman")) playBatmanSound();
+    else if (gameState.opponent.specialMove.name.includes("Clown")) playClownSound();
+    else if (gameState.opponent.specialMove.name.includes("Love")) playLoveSound();
+    else if (gameState.opponent.specialMove.name.includes("Egg")) playEggySound();
+    else if (gameState.opponent.specialMove.name.includes("Matrix")) playMatrixSound();
+    else if (gameState.opponent.specialMove.name.includes("Dictator")) playDictatorSound();
+    else if (gameState.opponent.specialMove.name.includes("Proofer") || gameState.opponent.specialMove.name.includes("Artiste") || gameState.opponent.specialMove.name.includes("Helper")) playHealerSound();
+    else if (gameState.opponent.specialMove.name.includes("Simp")) playSimpSound();
+    else playSpecialSound();
+  }
+  addToLog(message);
+  updateUI();
+});
 
   socket.on('gameOver', ({ winner }) => {
-    gameState.gameOver = true;
-    if (winner === socket.id) {
-      showNotification("YOU WIN!");
-      playVictorySound();
-      addToLog("You won the battle!");
-    } else {
-      showNotification("YOU LOSE!");
-      playDefeatSound();
-      addToLog("You lost the battle!");
-    }
-    document.querySelectorAll('.card').forEach(card => card.style.pointerEvents = 'none');
-    elements.specialMoveBtn.disabled = true;
-    updateUI();
-  });
+  gameState.gameOver = true;
+  gameState.restartRequested = false;
+  elements.restartBtn.textContent = "RESTART MATCH";
+  if (winner === socket.id) {
+    showNotification("YOU WIN!");
+    playVictorySound();
+    addToLog("You won the battle!");
+  } else if (winner === null) {
+    showNotification("DRAW!");
+    playDrawSound();
+    addToLog("The battle ends in a draw!");
+  } else {
+    showNotification("YOU LOSE!");
+    playDefeatSound();
+    addToLog("You lost the battle!");
+  }
+  document.querySelectorAll('.card').forEach(card => card.style.pointerEvents = 'none');
+  elements.specialMoveBtn.disabled = true;
+  updateUI();
+});
+
+  socket.on('restartRequested', ({ playerId, playerName }) => {
+  if (playerId !== socket.id) {
+    addToLog(`${playerName} wants to restart the match!`);
+    showNotification(`${playerName} requested a restart. Click Restart to agree.`);
+  }
+});
 
   socket.on('opponentDisconnected', () => {
     showNotification("Opponent disconnected!");
@@ -1721,45 +1804,130 @@
   }
 
   function startGame() {
-    if (gameState.selectedCards.length !== 5) {
-      alert("Please select exactly 5 cards for your deck!");
-      return;
-    }
-    playBackgroundMusic();
-    elements.characterSelect.style.display = 'none';
-    elements.gameContainer.style.display = 'flex';
+  if (gameState.selectedCards.length !== 5) {
+    showNotification("Please select exactly 5 cards for your deck!");
+    return;
+  }
+  playBackgroundMusic();
+  elements.characterSelect.style.display = 'none';
+  elements.gameContainer.style.display = 'flex';
 
-    const aiCharacter = characters[Math.floor(Math.random() * characters.length)];
-    gameState.ai = {
-      name: aiCharacter.name,
-      avatar: aiCharacter.avatar,
-      health: 100,
-      deck: generateRandomDeck(),
-      isAI: true,
-      specialMove: aiCharacter.specialMove,
-      specialMoveUsed: false,
-      extraTurns: 0,
-      shieldActive: false,
-      nextAttackDoubled: false
-    };
+  const aiCharacter = characters[Math.floor(Math.random() * characters.length)];
+  gameState.ai = {
+    name: aiCharacter.name,
+    avatar: aiCharacter.avatar,
+    health: 100,
+    deck: generateRandomDeck(),
+    deckInitial: null, // Will be set below
+    isAI: true,
+    specialMove: aiCharacter.specialMove,
+    specialMoveUsed: false,
+    extraTurns: 0,
+    shieldActive: false,
+    nextAttackDoubled: false
+  };
+  gameState.ai.deckInitial = [...gameState.ai.deck]; // Store initial AI deck
 
-    gameState.player.deck = [...gameState.selectedCards];
-    gameState.specialMoveUsed = false;
-    gameState.isMultiplayer = false;
+  gameState.player.deck = [...gameState.selectedCards];
+  gameState.specialMoveUsed = false;
+  gameState.isMultiplayer = false;
+  gameState.currentTurn = "player";
+  gameState.gameOver = false;
 
-    initBattle();
+  console.log("Starting game with:", {
+    player: gameState.player,
+    ai: gameState.ai,
+    selectedCards: gameState.selectedCards
+  });
+
+  initBattle();
+}
+
+function playCard(cardIndex) {
+  if (gameState.gameOver || gameState.currentTurn !== "player") {
+    console.log('playCard blocked:', { gameOver: gameState.gameOver, currentTurn: gameState.currentTurn });
+    return;
   }
 
-  function animateCardsDrop() {
-    elements.playerDeck.innerHTML = '<div class="deck-placeholder">✧</div>';
-    elements.aiDeck.innerHTML = '<div class="deck-placeholder">✧</div>';
+  const card = gameState.player.deck[cardIndex];
+  if (!card) {
+    console.error('Invalid card at index:', cardIndex);
+    return;
+  }
 
-    const deckSource = gameState.isMultiplayer ? gameState.player.deck : gameState.ai.deck;
-    const opponentDeckSize = gameState.isMultiplayer ? gameState.opponent.deckSize : deckSource.length;
+  const cardElement = elements.playerDeck.children[cardIndex];
+  cardElement.classList.add('card-play-anim');
 
-    for (let i = 0; i < 5; i++) {
-      setTimeout(() => {
-        const card = gameState.player.deck[i];
+  if (card.name === "Crush") playCrushSound();
+  else if (card.name === "Egg") playEggSound();
+  else if (card.name === "Fireball") playFireballSound();
+  else if (card.type === "attack") playAttackSound();
+  else if (card.type === "heal") playHealSound();
+  else if (card.name === "Shield") playShieldSound();
+
+  setTimeout(() => {
+    cardElement.classList.remove('card-play-anim');
+    cardElement.remove();
+
+    if (gameState.isMultiplayer) {
+      console.log('Emitting playCard:', { roomId: gameState.roomId, cardIndex });
+      socket.emit('playCard', { roomId: gameState.roomId, cardIndex });
+      // Local updates deferred to gameStateUpdated
+    } else {
+      applyCardEffects(card, gameState.player, gameState.ai);
+      gameState.player.deck.splice(cardIndex, 1);
+      if (gameState.player.deck.length < 5) {
+        const newCard = gameState.selectedCards[Math.floor(Math.random() * gameState.selectedCards.length)];
+        gameState.player.deck.push({ ...newCard });
+        setTimeout(() => {
+          const newCardElement = document.createElement('div');
+          newCardElement.className = `card ${newCard.type}`;
+          newCardElement.innerHTML = `
+            <div class="card-name">${newCard.name}</div>
+            <div class="card-icon">${newCard.icon}</div>
+            <div class="card-value">${newCard.power}</div>
+          `;
+          newCardElement.style.opacity = '0';
+          elements.playerDeck.appendChild(newCardElement);
+          setTimeout(() => {
+            newCardElement.style.transition = 'opacity 0.5s';
+            newCardElement.style.opacity = '1';
+            if (gameState.currentTurn === "player" && !gameState.gameOver) {
+              newCardElement.addEventListener('click', () => playCard(gameState.player.deck.length - 1));
+            }
+          }, 50);
+        }, 300);
+      }
+      addToLog(`${gameState.player.name} plays ${card.name}!`);
+      if (gameState.ai.health <= 0 || gameState.player.health <= 0) {
+        endGame();
+        return;
+      }
+      if (gameState.player.extraTurns > 0) {
+        gameState.player.extraTurns--;
+        addToLog(`${gameState.player.name} gets an extra turn!`);
+        updateUI();
+      } else {
+        gameState.currentTurn = "ai";
+        elements.turnIndicator.textContent = "AI TURN";
+        updateUI();
+        setTimeout(makeAIMove, 1000);
+      }
+    }
+  }, 300);
+}
+
+function animateCardsDrop() {
+  elements.playerDeck.innerHTML = '<div class="deck-placeholder">✧</div>';
+  elements.aiDeck.innerHTML = '<div class="deck-placeholder">✧</div>';
+
+  const deckSource = gameState.isMultiplayer ? gameState.player.deck : gameState.ai.deck;
+  const opponentDeckSize = gameState.isMultiplayer ? gameState.opponent.deckSize : deckSource.length;
+
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => {
+      const card = gameState.player.deck[i];
+      if (card) {
         const cardElement = document.createElement('div');
         cardElement.className = `card ${card.type}`;
         cardElement.innerHTML = `
@@ -1776,9 +1944,11 @@
             cardElement.addEventListener('click', () => playCard(i));
           }
         }, 800);
-      }, i * 300);
+      }
+    }, i * 300);
 
-      setTimeout(() => {
+    setTimeout(() => {
+      if (i < opponentDeckSize) {
         const cardElement = document.createElement('div');
         cardElement.className = 'card ai-card';
         cardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
@@ -1788,15 +1958,17 @@
           cardElement.classList.remove('ai-card-deal-animation');
           cardElement.style.position = '';
         }, 800);
-      }, (i + 5) * 300);
-    }
-
-    setTimeout(() => {
-      elements.playerDeck.querySelector('.deck-placeholder')?.remove();
-      elements.aiDeck.querySelector('.deck-placeholder')?.remove();
-      elements.turnIndicator.style.display = 'block';
-    }, 3000);
+      }
+    }, (i + 5) * 300);
   }
+
+  setTimeout(() => {
+    elements.playerDeck.querySelector('.deck-placeholder')?.remove();
+    elements.aiDeck.querySelector('.deck-placeholder')?.remove();
+    elements.turnIndicator.style.display = 'block';
+  }, 3000);
+}
+
 
   function getRandomCard() {
     const randomIndex = Math.floor(Math.random() * allCardTypes.length);
@@ -1826,125 +1998,71 @@
     animateCardsDrop();
   }
 
-  function updateUI() {
-    if (!gameState.player) return;
+socket.on('gameStateUpdated', ({ players, currentTurn, roomId }) => {
+  console.log("🔄 gameStateUpdated received:", { players, currentTurn, roomId });
+  if (gameState.roomId !== roomId) {
+    console.error('Room ID mismatch:', { expected: gameState.roomId, received: roomId });
+    addToLog('Error: Room ID mismatch.');
+    showNotification('Error: Game state sync failed due to room mismatch.');
+    return;
+  }
+  const localPlayer = players.find(p => p.socketId === socket.id);
+  const opponent = players.find(p => p.socketId !== socket.id);
+  if (!localPlayer || !opponent) {
+    console.error('Invalid gameStateUpdated payload', { players, currentTurn, roomId });
+    addToLog('Error: Failed to update game state.');
+    showNotification('Error: Game state sync failed.');
+    return;
+  }
+  gameState.player.health = localPlayer.health;
+  gameState.player.specialMoveUsed = localPlayer.specialMoveUsed || false;
+  gameState.player.deckSize = localPlayer.deckSize;
+  gameState.player.shieldActive = localPlayer.shieldActive || false;
+  gameState.player.nextAttackDoubled = localPlayer.nextAttackDoubled || false;
+  gameState.player.extraTurns = localPlayer.extraTurns || 0;
+  gameState.opponent.health = opponent.health;
+  gameState.opponent.specialMoveUsed = opponent.specialMoveUsed || false;
+  gameState.opponent.deckSize = opponent.deckSize;
+  gameState.opponent.shieldActive = opponent.shieldActive || false;
+  gameState.opponent.nextAttackDoubled = opponent.nextAttackDoubled || false;
+  gameState.opponent.extraTurns = opponent.extraTurns || 0;
+  gameState.currentTurn = currentTurn === socket.id ? "player" : "opponent";
+  renderDecks();
+  updateUI();
+  console.log("Updated gameState:", {
+    playerHealth: gameState.player.health,
+    opponentHealth: gameState.opponent.health,
+    currentTurn: gameState.currentTurn,
+    playerDeckSize: gameState.player.deckSize,
+    opponentDeckSize: gameState.opponent.deckSize
+  });
+});
+function renderDecks() {
+  elements.playerDeck.innerHTML = '';
+  elements.aiDeck.innerHTML = '';
 
-    elements.playerName.textContent = gameState.player.name;
-    elements.playerAvatar.src = gameState.player.avatar;
-    elements.playerHealthBar.style.width = `${gameState.player.health}%`;
-    elements.playerHealthText.textContent = `${gameState.player.health}/100`;
-
-    const opponent = gameState.isMultiplayer ? gameState.opponent : gameState.ai;
-    if (opponent) {
-      elements.aiName.textContent = opponent.name;
-      elements.aiAvatar.src = opponent.avatar;
-      elements.aiHealthBar.style.width = `${opponent.health}%`;
-      elements.aiHealthText.textContent = `${opponent.health}/100`;
+  gameState.player.deck.forEach((card, index) => {
+    const cardElement = document.createElement('div');
+    cardElement.className = `card ${card.type}`;
+    cardElement.innerHTML = `
+      <div class="card-name">${card.name}</div>
+      <div class="card-icon">${card.icon}</div>
+      <div class="card-value">${card.power}</div>
+    `;
+    if (gameState.currentTurn === "player" && !gameState.gameOver) {
+      cardElement.addEventListener('click', () => playCard(index));
     }
+    elements.playerDeck.appendChild(cardElement);
+  });
 
-    elements.turnIndicator.textContent = gameState.currentTurn === "player" ? "YOUR TURN" : `${opponent.name.toUpperCase()}'S TURN`;
-    elements.specialMoveBtn.disabled = gameState.currentTurn !== "player" || gameState.player.specialMoveUsed || gameState.gameOver;
-    elements.specialMoveBtn.textContent = gameState.player.specialMoveUsed ? "SPECIAL MOVE USED" : `USE ${gameState.player.specialMove?.name || "SPECIAL"}`;
-
-    renderDecks();
+  const deckSize = gameState.isMultiplayer ? gameState.opponent.deckSize : gameState.ai.deck.length;
+  for (let i = 0; i < deckSize; i++) {
+    const cardElement = document.createElement('div');
+    cardElement.className = 'card ai-card';
+    cardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
+    elements.aiDeck.appendChild(cardElement);
   }
-
-  function renderDecks() {
-    elements.playerDeck.innerHTML = '';
-    elements.aiDeck.innerHTML = '';
-
-    gameState.player.deck.forEach((card, index) => {
-      const cardElement = document.createElement('div');
-      cardElement.className = `card ${card.type}`;
-      cardElement.innerHTML = `
-        <div class="card-name">${card.name}</div>
-        <div class="card-icon">${card.icon}</div>
-        <div class="card-value">${card.power}</div>
-      `;
-      if (gameState.currentTurn === "player" && !gameState.gameOver) {
-        cardElement.addEventListener('click', () => playCard(index));
-      }
-      elements.playerDeck.appendChild(cardElement);
-    });
-
-    const deckSize = gameState.isMultiplayer ? gameState.opponent.deckSize : gameState.ai.deck.length;
-    for (let i = 0; i < deckSize; i++) {
-      const cardElement = document.createElement('div');
-      cardElement.className = 'card ai-card';
-      cardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
-      elements.aiDeck.appendChild(cardElement);
-    }
-  }
-
-  function playCard(cardIndex) {
-    if (gameState.gameOver || gameState.currentTurn !== "player") return;
-
-    const card = gameState.player.deck[cardIndex];
-    if (!card) return;
-
-    const cardElement = elements.playerDeck.children[cardIndex];
-    cardElement.classList.add('card-play-anim');
-
-    if (card.name === "Crush") playCrushSound();
-    else if (card.name === "Egg") playEggSound();
-    else if (card.name === "Fireball") playFireballSound();
-    else if (card.type === "attack") playAttackSound();
-    else if (card.type === "heal") playHealSound();
-    else if (card.name === "Shield") playShieldSound();
-
-    setTimeout(() => {
-      cardElement.classList.remove('card-play-anim');
-
-      if (gameState.isMultiplayer) {
-        socket.emit('playCard', { roomId: gameState.roomId, cardIndex });
-        applyCardEffects(card, gameState.player, gameState.opponent);
-        gameState.player.deck.splice(cardIndex, 1);
-        if (gameState.player.deck.length < 5) {
-          const newCard = getRandomCard();
-          gameState.player.deck.push(newCard);
-        }
-        updateUI();
-      } else {
-        applyCardEffects(card, gameState.player, gameState.ai);
-        gameState.player.deck.splice(cardIndex, 1);
-        if (gameState.player.deck.length < 5) {
-          const newCard = getRandomCard();
-          gameState.player.deck.push(newCard);
-          setTimeout(() => {
-            const newCardElement = document.createElement('div');
-            newCardElement.className = `card ${newCard.type}`;
-            newCardElement.innerHTML = `
-              <div class="card-name">${newCard.name}</div>
-              <div class="card-icon">${newCard.icon}</div>
-              <div class="card-value">${newCard.power}</div>
-            `;
-            newCardElement.style.opacity = '0';
-            elements.playerDeck.appendChild(newCardElement);
-            setTimeout(() => {
-              newCardElement.style.transition = 'opacity 0.5s';
-              newCardElement.style.opacity = '1';
-            }, 50);
-          }, 300);
-        }
-
-        if (gameState.ai.health <= 0 || gameState.player.health <= 0) {
-          endGame();
-          return;
-        }
-
-        if (gameState.player.extraTurns > 0) {
-          gameState.player.extraTurns--;
-          addToLog(`${gameState.player.name} gets an extra turn!`);
-          updateUI();
-        } else {
-          gameState.currentTurn = "ai";
-          updateUI();
-          setTimeout(makeAIMove, 1000);
-        }
-      }
-    }, 300);
-  }
-
+}
   function applyCardEffects(card, user, target) {
     if (card.type === "attack" || card.name === "Egg") {
       let damage = card.power;
@@ -2167,68 +2285,69 @@
   }
 
   function makeAIMove() {
-    if (gameState.gameOver || gameState.currentTurn !== "ai") return;
+  if (gameState.gameOver || gameState.currentTurn !== "ai") return;
 
-    const ai = gameState.ai;
-    const player = gameState.player;
+  const ai = gameState.ai;
+  const player = gameState.player;
 
-    if (!ai.specialMoveUsed && (ai.health <= 50 || player.health <= 50)) {
-      useAISpecialMove();
+  if (!ai.specialMoveUsed && (ai.health <= 50 || player.health <= 50)) {
+    useAISpecialMove();
+    return;
+  }
+
+  const cardIndex = Math.floor(Math.random() * ai.deck.length);
+  const card = ai.deck[cardIndex];
+  const cardElement = elements.aiDeck.children[cardIndex];
+
+  if (card.name === "Crush") playCrushSound();
+  else if (card.name === "Egg") playEggSound();
+  else if (card.type === "attack") playAttackSound();
+  else if (card.type === "heal") playHealSound();
+  else if (card.name === "Shield") playShieldSound();
+
+  cardElement.innerHTML = `
+    <div class="card-name">${card.name}</div>
+    <div class="card-icon">${card.icon}</div>
+    <div class="card-value">${card.power}</div>
+  `;
+  cardElement.classList.add('card-play-anim');
+
+  setTimeout(() => {
+    cardElement.classList.remove('card-play-anim');
+    applyCardEffects(card, ai, player);
+    ai.deck.splice(cardIndex, 1);
+    if (ai.deck.length < 5) {
+      const initialCards = gameState.ai.deckInitial || ai.deck; // Store initial deck if not already
+      gameState.ai.deckInitial = initialCards; // Save initial deck for future draws
+      const newCard = initialCards[Math.floor(Math.random() * initialCards.length)];
+      ai.deck.push({ ...newCard });
+      setTimeout(() => {
+        const newCardElement = document.createElement('div');
+        newCardElement.className = 'card ai-card';
+        newCardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
+        newCardElement.style.opacity = '0';
+        elements.aiDeck.appendChild(newCardElement);
+        setTimeout(() => {
+          newCardElement.style.transition = 'opacity 0.5s';
+          newCardElement.style.opacity = '1';
+        }, 50);
+      }, 300);
+    }
+
+    if (player.health <= 0 || ai.health <= 0) {
+      endGame();
       return;
     }
 
-    const cardIndex = Math.floor(Math.random() * ai.deck.length);
-    const card = ai.deck[cardIndex];
-    const cardElement = elements.aiDeck.children[cardIndex];
-
-    if (card.name === "Crush") playCrushSound();
-    else if (card.name === "Egg") playEggSound();
-    else if (card.type === "attack") playAttackSound();
-    else if (card.type === "heal") playHealSound();
-    else if (card.name === "Shield") playShieldSound();
-
-    cardElement.innerHTML = `
-      <div class="card-name">${card.name}</div>
-      <div class="card-icon">${card.icon}</div>
-      <div class="card-value">${card.power}</div>
-    `;
-    cardElement.classList.add('card-play-anim');
-
-    setTimeout(() => {
-      cardElement.classList.remove('card-play-anim');
-      applyCardEffects(card, ai, player);
-      ai.deck.splice(cardIndex, 1);
-      if (ai.deck.length < 5) {
-        const newCard = getRandomCard();
-        ai.deck.push(newCard);
-        setTimeout(() => {
-          const newCardElement = document.createElement('div');
-          newCardElement.className = 'card ai-card';
-          newCardElement.innerHTML = `<div style="font-size: 2rem;">❓</div>`;
-          newCardElement.style.opacity = '0';
-          elements.aiDeck.appendChild(newCardElement);
-          setTimeout(() => {
-            newCardElement.style.transition = 'opacity 0.5s';
-            newCardElement.style.opacity = '1';
-          }, 50);
-        }, 300);
-      }
-
-      if (player.health <= 0 || ai.health <= 0) {
-        endGame();
-        return;
-      }
-
-      if (ai.extraTurns > 0) {
-        ai.extraTurns--;
-        setTimeout(makeAIMove, 1000);
-      } else {
-        gameState.currentTurn = "player";
-        updateUI();
-      }
-    }, 300);
-  }
-
+    if (ai.extraTurns > 0) {
+      ai.extraTurns--;
+      setTimeout(makeAIMove, 1000);
+    } else {
+      gameState.currentTurn = "player";
+      updateUI();
+    }
+  }, 300);
+}
   function useAISpecialMove() {
     const ai = gameState.ai;
     const player = gameState.player;
@@ -2283,6 +2402,30 @@
     elements.specialMoveBtn.disabled = true;
   }
 
+  function updateUI() {
+  if (!gameState.player) return;
+
+  elements.playerName.textContent = gameState.player.name || "PLAYER";
+  elements.playerAvatar.src = gameState.player.avatar || "./Avatars/default.png";
+  elements.playerHealthBar.style.width = `${gameState.player.health}%`;
+  elements.playerHealthText.textContent = `${gameState.player.health}/100`;
+
+  const opponent = gameState.isMultiplayer ? gameState.opponent : gameState.ai;
+  if (opponent) {
+    elements.aiName.textContent = opponent.name || "OPPONENT";
+    elements.aiAvatar.src = opponent.avatar || "./Avatars/default.png";
+    elements.aiHealthBar.style.width = `${opponent.health}%`;
+    elements.aiHealthText.textContent = `${opponent.health}/100`;
+  }
+
+  elements.turnIndicator.textContent = gameState.currentTurn === "player" ? "YOUR TURN" : `${opponent?.name?.toUpperCase() || "OPPONENT"}'S TURN`;
+  elements.specialMoveBtn.disabled = gameState.currentTurn !== "player" || gameState.player.specialMoveUsed || gameState.gameOver;
+  elements.specialMoveBtn.textContent = gameState.player.specialMoveUsed ? "SPECIAL MOVE USED" : `USE ${gameState.player.specialMove?.name || "SPECIAL"}`;
+  elements.restartBtn.textContent = gameState.restartRequested ? "WAITING FOR OPPONENT..." : "RESTART MATCH";
+  elements.restartBtn.disabled = gameState.restartRequested && gameState.isMultiplayer;
+  renderDecks();
+}
+
   function addToLog(message) {
     const logEntry = document.createElement('div');
     logEntry.className = 'log-entry';
@@ -2292,8 +2435,17 @@
   }
 
   function restartMatch() {
-    if (!gameState.player || !gameState.ai || gameState.isMultiplayer) return;
-
+  if (gameState.isMultiplayer) {
+    if (!gameState.restartRequested) {
+      gameState.restartRequested = true;
+      socket.emit('requestRestart', { roomId: gameState.roomId });
+      elements.restartBtn.textContent = "WAITING FOR OPPONENT...";
+      elements.restartBtn.disabled = true;
+      addToLog("You requested to restart the match!");
+      showNotification("Waiting for opponent to restart...");
+    }
+  } else {
+    if (!gameState.player || !gameState.ai) return;
     gameState.player.health = 100;
     gameState.ai.health = 100;
     gameState.currentTurn = "player";
@@ -2304,11 +2456,11 @@
     gameState.ai.extraTurns = 0;
     gameState.player.deck = [...gameState.selectedCards];
     gameState.ai.deck = generateRandomDeck();
-
     elements.battleLog.innerHTML = '<div class="log-entry">Match restarted!</div>';
     updateUI();
     animateCardsDrop();
   }
+}
 
   function newGame() {
     elements.mainMenu.style.display = 'flex';
@@ -2347,9 +2499,14 @@
       alert("Please select exactly 5 cards first!");
     }
   });
-  elements.quitBtn.addEventListener('click', () => {
-    if (confirm("Are you sure you want to quit?")) window.location.href = "about:blank";
-  });
+ elements.quitBtn.addEventListener('click', () => {
+  if (confirm("Are you sure you want to quit?")) {
+    if (gameState.isMultiplayer && gameState.roomId) {
+      socket.emit('leaveRoom', { roomId: gameState.roomId });
+    }
+    newGame(); // Return to main menu instead of about:blank
+  }
+});
   elements.createRoomBtn.addEventListener('click', () => {
     if (gameState.selectedCards.length === 5) {
       socket.emit('createRoom', {

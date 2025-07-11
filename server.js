@@ -43,22 +43,26 @@ io.on('connection', (socket) => {
         specialMoveUsed: false,
         shieldActive: false,
         nextAttackDoubled: false,
-        extraTurns: 0
+        extraTurns: 0,
+        restartRequested: false
       }],
       currentTurn: socket.id
     };
     socket.join(roomId);
     socket.emit('roomCreated', { roomId });
+    console.log(`Room created: ${roomId} by ${name}`);
   });
 
   socket.on('joinRoom', ({ roomId, playerData }) => {
     const room = rooms[roomId];
     if (!room) {
       socket.emit('error', 'Room not found');
+      console.error(`Join room failed: Room ${roomId} not found`);
       return;
     }
     if (room.players.length >= 2) {
       socket.emit('error', 'Room is full');
+      console.error(`Join room failed: Room ${roomId} is full`);
       return;
     }
     room.players.push({
@@ -73,10 +77,12 @@ io.on('connection', (socket) => {
       specialMoveUsed: false,
       shieldActive: false,
       nextAttackDoubled: false,
-      extraTurns: 0
+      extraTurns: 0,
+      restartRequested: false
     });
     socket.join(roomId);
     io.to(roomId).emit('playerJoined', { players: room.players, roomId });
+    console.log(`${playerData.name} joined room ${roomId}`);
   });
 
   socket.on('playerReady', ({ roomId, deck, specialMove }) => {
@@ -106,11 +112,12 @@ io.on('connection', (socket) => {
         currentTurn: room.currentTurn,
         roomId
       });
+      console.log(`Game started in room ${roomId}`);
     }
   });
 
   socket.on('playCard', ({ roomId, cardIndex, card, newCard }) => {
-    console.log('playCard received:', { roomId, cardIndex, card, newCard }); // Debug log
+    console.log('playCard received:', { roomId, cardIndex, card, newCard });
     const room = rooms[roomId];
     if (!room) {
       socket.emit('error', 'Room not found');
@@ -135,6 +142,7 @@ io.on('connection', (socket) => {
     }
 
     io.to(opponent.socketId).emit('cardPlayed', { playerId: socket.id, cardIndex, card });
+    console.log(`cardPlayed emitted to ${opponent.socketId}:`, { playerId: socket.id, cardIndex, card });
 
     if (player.health <= 0 || opponent.health <= 0) {
       const winner = player.health <= 0 && opponent.health <= 0 ? null :
@@ -145,7 +153,10 @@ io.on('connection', (socket) => {
     }
 
     room.currentTurn = player.extraTurns > 0 ? socket.id : opponent.socketId;
-    if (player.extraTurns > 0) player.extraTurns--;
+    if (player.extraTurns > 0) {
+      player.extraTurns--;
+      console.log(`${player.name} gets extra turn, extraTurns left: ${player.extraTurns}`);
+    }
 
     io.to(roomId).emit('gameStateUpdated', {
       players: [
@@ -175,8 +186,8 @@ io.on('connection', (socket) => {
     });
     console.log('gameStateUpdated emitted:', {
       players: [
-        { socketId: player.socketId, health: player.health, deckSize: player.deck.length },
-        { socketId: opponent.socketId, health: opponent.health, deckSize: opponent.deck.length }
+        { socketId: player.socketId, health: player.health, deckSize: player.deck.length, extraTurns: player.extraTurns },
+        { socketId: opponent.socketId, health: opponent.health, deckSize: opponent.deck.length, extraTurns: opponent.extraTurns }
       ],
       currentTurn: room.currentTurn,
       roomId
@@ -249,6 +260,7 @@ io.on('connection', (socket) => {
 
     player.restartRequested = true;
     io.to(opponent.socketId).emit('restartRequested', { playerId: socket.id, playerName: player.name });
+    console.log(`${player.name} requested restart in room ${roomId}`);
 
     if (room.players.every(p => p.restartRequested)) {
       room.players.forEach(p => {
@@ -278,6 +290,7 @@ io.on('connection', (socket) => {
         currentTurn: room.currentTurn,
         roomId
       });
+      console.log(`Game restarted in room ${roomId}`);
     }
   });
 
@@ -290,6 +303,7 @@ io.on('connection', (socket) => {
     }
     delete rooms[roomId];
     socket.leave(roomId);
+    console.log(`Player left room ${roomId}`);
   });
 
   socket.on('disconnect', () => {
@@ -302,6 +316,7 @@ io.on('connection', (socket) => {
           io.to(remainingPlayers[0].socketId).emit('opponentDisconnected');
         }
         delete rooms[roomId];
+        console.log(`Player disconnected, room ${roomId} deleted`);
       }
     }
   });

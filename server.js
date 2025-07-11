@@ -151,50 +151,45 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('playCard', ({ roomId, cardIndex, card }) => {
-    const room = rooms.get(roomId);
-    if (!room || !room.gameState) {
-      socket.emit('error', 'Room does not exist or game not started');
-      console.error(`Room ${roomId} not found or no gameState for playCard by ${socket.id}`);
-      return;
-    }
-    if (room.gameState.currentTurn !== socket.id) {
-      socket.emit('error', 'Not your turn');
-      console.error(`Not ${socket.id}'s turn in room ${roomId}`);
-      return;
-    }
-    const currentPlayer = room.gameState.players.find(p => p.socketId === socket.id);
-    const opponent = room.gameState.players.find(p => p.socketId !== socket.id);
-    if (!card || !currentPlayer || !opponent) {
-      socket.emit('error', 'Invalid card play attempt');
-      console.error('Invalid playCard attempt:', { roomId, cardIndex, card, socketId: socket.id });
-      return;
-    }
-    applyCardEffectsServer(card, currentPlayer, opponent);
-    currentPlayer.deck.splice(cardIndex, 1);
-    currentPlayer.deckSize = currentPlayer.deck.length;
-    if (currentPlayer.deck.length < 5) {
-      const newCard = getRandomCardServer();
-      currentPlayer.deck.push(newCard);
-      currentPlayer.deckSize = currentPlayer.deck.length;
-    }
-    io.to(roomId).emit('cardPlayed', { playerId: socket.id, cardIndex, card });
-    if (opponent.health <= 0 || currentPlayer.health <= 0) {
-      const winner = opponent.health <= 0 ? currentPlayer.socketId : (currentPlayer.health <= 0 ? opponent.socketId : null);
-      io.to(roomId).emit('gameOver', { winner });
-      rooms.delete(roomId);
-      console.log(`🏁 Game over in room ${roomId}, winner: ${winner || 'draw'}`);
-      return;
-    }
-    room.gameState.currentTurn = opponent.socketId;
+ socket.on('playCard', ({ roomId, cardIndex, card, newCard }) => {
+  const room = rooms[roomId];
+  if (!room) return;
+
+  const player = room.players.find(p => p.socketId === socket.id);
+  const opponent = room.players.find(p => p.socketId !== socket.id);
+  if (!player || !opponent || room.currentTurn !== socket.id) return;
+
+  // Apply card effects (server-side)
+  applyCardEffects(card, player, opponent, room);
+
+  // Update player's deck
+  player.deck.splice(cardIndex, 1);
+  if (player.deck.length < 5 && newCard) {
+    player.deck.push(newCard);
+    player.deckSize = player.deck.length;
+  }
+
+  // Emit to opponent
+  io.to(opponent.socketId).emit('cardPlayed', { playerId: socket.id, cardIndex, card });
+
+  // Update game state
+  if (player.health <= 0 || opponent.health <= 0) {
+    const winner = player.health <= 0 && opponent.health <= 0 ? null :
+                   player.health > 0 ? player.socketId : opponent.socketId;
+    io.to(roomId).emit('gameOver', { winner });
+  } else {
+    room.currentTurn = player.extraTurns > 0 ? socket.id : opponent.socketId;
+    if (player.extraTurns > 0) player.extraTurns--;
     io.to(roomId).emit('gameStateUpdated', {
-      players: room.gameState.players,
-      currentTurn: room.gameState.currentTurn,
+      players: [
+        { socketId: player.socketId, health: player.health, deckSize: player.deck.length, specialMoveUsed: player.specialMoveUsed, shieldActive: player.shieldActive, nextAttackDoubled: player.nextAttackDoubled },
+        { socketId: opponent.socketId, health: opponent.health, deckSize: opponent.deck.length, specialMoveUsed: opponent.specialMoveUsed, shieldActive: opponent.shieldActive, nextAttackDoubled: opponent.nextAttackDoubled }
+      ],
+      currentTurn: room.currentTurn,
       roomId
     });
-    console.log(`🎴 Card played in room ${roomId} by ${currentPlayer.name}:`, card);
-  });
-
+  }
+});
   socket.on('useSpecialMove', ({ roomId, playerId, message, playerHealth, opponentHealth, extraTurn, doubleDamage }) => {
     const room = rooms.get(roomId);
     if (!room || !room.gameState) {

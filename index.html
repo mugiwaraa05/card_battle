@@ -1650,6 +1650,7 @@ socket.on('cardPlayed', ({ playerId, cardIndex, card, newCard }) => {
   gameState.gameOver = true;
   gameState.restartRequested = false;
   elements.restartBtn.textContent = "RESTART MATCH";
+  elements.restartBtn.disabled = false;
   if (winner === socket.id) {
     showNotification("YOU WIN!");
     playVictorySound();
@@ -2371,36 +2372,30 @@ function renderDecks() {
   }
 
   function endGame() {
-    gameState.gameOver = true;
-    const opponent = gameState.isMultiplayer ? gameState.opponent : gameState.ai;
+  gameState.gameOver = true;
+  const opponent = gameState.isMultiplayer ? gameState.opponent : gameState.ai;
 
-    let winner;
-    if (gameState.player.health <= 0 && opponent.health <= 0) winner = "draw";
-    else if (gameState.player.health <= 0) winner = "opponent";
-    else winner = "player";
-
-    if (gameState.isMultiplayer) {
-      socket.emit('gameOver', {
-        roomId: gameState.roomId,
-        winner: winner === "player" ? socket.id : (winner === "opponent" ? opponent.socketId : null)
-      });
+  if (!gameState.isMultiplayer) {
+    if (gameState.player.health <= 0 && opponent.health <= 0) {
+      showNotification("DRAW!");
+      playDrawSound();
+      addToLog("The battle ends in a draw!");
+    } else if (gameState.player.health <= 0) {
+      showNotification("YOU LOSE!");
+      playDefeatSound();
+      addToLog(`${opponent.name} wins the battle!`);
     } else {
-      if (gameState.player.health <= 0) {
-        showNotification("YOU LOSE!");
-        playDefeatSound();
-        addToLog(`${opponent.name} wins the battle!`);
-      } else {
-        showNotification("YOU WIN!");
-        playVictorySound();
-        addToLog("You won the battle!");
-      }
-      updateUI();
+      showNotification("YOU WIN!");
+      playVictorySound();
+      addToLog("You won the battle!");
     }
-
     elements.turnIndicator.style.display = 'none';
     document.querySelectorAll('.card').forEach(card => card.style.pointerEvents = 'none');
     elements.specialMoveBtn.disabled = true;
+    elements.restartBtn.disabled = false; // Enable restart button
+    updateUI();
   }
+}
 
   function updateUI() {
   if (!gameState.player) return;
